@@ -61,11 +61,15 @@ class UpcomingClassWidget : AppWidgetProvider() {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val json = prefs.getString(KEY_DATA, null)
 
+            views.setInt(R.id.label_text, "setVisibility", 0x00000008) // GONE
+
             if (json != null) {
                 try {
                     val data = org.json.JSONObject(json)
                     if (data.optBoolean("hasClass", false)) {
-                        views.setTextViewText(R.id.label_text, "")
+                        views.setInt(R.id.time_text, "setVisibility", 0x00000000)   // VISIBLE
+                        views.setInt(R.id.location_text, "setVisibility", 0x00000000)
+                        views.setInt(R.id.teacher_text, "setVisibility", 0x00000000)
                         views.setTextViewText(R.id.class_name_text, data.optString("className", ""))
                         views.setTextViewText(R.id.time_text, data.optString("timeRange", ""))
                         views.setTextViewText(R.id.location_text, data.optString("location", ""))
@@ -76,11 +80,10 @@ class UpcomingClassWidget : AppWidgetProvider() {
                 } catch (_: Exception) { }
             }
 
-            views.setTextViewText(R.id.label_text, "")
+            views.setInt(R.id.time_text, "setVisibility", 0x00000008)      // GONE
+            views.setInt(R.id.location_text, "setVisibility", 0x00000008)
+            views.setInt(R.id.teacher_text, "setVisibility", 0x00000008)
             views.setTextViewText(R.id.class_name_text, "今天没有课了")
-            views.setTextViewText(R.id.time_text, "")
-            views.setTextViewText(R.id.location_text, "")
-            views.setTextViewText(R.id.teacher_text, "")
             attachClickIntent(context, views)
         }
 
