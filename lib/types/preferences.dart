@@ -177,11 +177,19 @@ class CurriculumSettings extends BaseDataClass {
 @JsonSerializable()
 class AppSettings extends BaseDataClass {
   ThemeMode themeMode;
+  @JsonKey(name: 'accentColor')
+  int? accentColorValue;
 
-  AppSettings({required this.themeMode});
+  AppSettings({required this.themeMode, this.accentColorValue});
+
+  Color? get accentColor =>
+      accentColorValue != null ? Color(accentColorValue!) : null;
 
   @override
-  Map<String, dynamic> getEssentials() => {'themeMode': themeMode};
+  Map<String, dynamic> getEssentials() => {
+    'themeMode': themeMode,
+    'accentColor': accentColorValue,
+  };
 
   static final AppSettings defaultSettings = AppSettings(
     themeMode: ThemeMode.system,
@@ -232,19 +240,16 @@ class AnnouncementReadMap extends BaseDataClass {
 class ServiceSettingsPreference extends BaseDataClass {
   final String? coursesBaseUrl;
   final String? netBaseUrl;
-  final String? syncBaseUrl;
 
   ServiceSettingsPreference({
     this.coursesBaseUrl,
     this.netBaseUrl,
-    this.syncBaseUrl,
   });
 
   @override
   Map<String, dynamic> getEssentials() => {
     'coursesBaseUrl': coursesBaseUrl,
     'netBaseUrl': netBaseUrl,
-    'syncBaseUrl': syncBaseUrl,
   };
 
   factory ServiceSettingsPreference.fromJson(Map<String, dynamic> json) =>

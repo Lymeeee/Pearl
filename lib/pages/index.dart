@@ -4,8 +4,6 @@ import 'package:auto_route/auto_route.dart';
 import '/utils/page_mixins.dart';
 import '/services/widget_updater.dart';
 import '/types/courses.dart';
-import '/types/preferences.dart';
-import '/types/sync.dart';
 
 class _FeatureCardConfig {
   final String title;
@@ -65,7 +63,7 @@ class _HomePageState extends State<HomePage>
 
   late final List<_FeatureCardConfig> _netFeatureCards = [
     _FeatureCardConfig(
-      title: '自助服务',
+      title: '网络服务',
       description: '账户管理和账单查询',
       icon: Icons.wifi,
       color: (c) => Theme.of(c).colorScheme.primary,
@@ -77,6 +75,13 @@ class _HomePageState extends State<HomePage>
       icon: Icons.receipt_long,
       color: (c) => Theme.of(c).colorScheme.primary,
       route: '/net/traffic',
+    ),
+    _FeatureCardConfig(
+      title: '电费查询',
+      description: '查询宿舍电表余额',
+      icon: Icons.bolt,
+      color: (c) => Theme.of(c).colorScheme.primary,
+      route: '/net/electricity',
     ),
   ];
 
@@ -184,7 +189,7 @@ class _HomePageState extends State<HomePage>
           children: [
             SizedBox(height: MediaQuery.of(context).padding.top + 16),
             const Text(
-              '欢迎来到大贝壳~',
+              '欢迎来到大贝壳NEXT~',
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -228,7 +233,7 @@ class _HomePageState extends State<HomePage>
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '教务',
+                    '教务管理',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.onPrimaryContainer,
@@ -237,14 +242,6 @@ class _HomePageState extends State<HomePage>
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                "本研一体教务管理系统",
-                style: TextStyle(
-                  fontSize: 14,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 16),
               if (isNarrowScreen) ...[
                 _buildNarrowLayout(),
               ] else ...[
@@ -260,10 +257,7 @@ class _HomePageState extends State<HomePage>
   Widget _buildNarrowLayout() {
     return Column(
       children: [
-        SizedBox(
-          height: (_ongoingClass != null || _upcomingClass != null) ? 200 : 140,
-          child: _buildCurriculumCard(context, isWideScreen: false),
-        ),
+        _buildCurriculumCard(context, isWideScreen: false),
         const SizedBox(height: 8),
         SizedBox(height: 100, child: _buildAccountCard(context)),
         ..._courseFeatureCards.map((card) {
@@ -291,10 +285,7 @@ class _HomePageState extends State<HomePage>
   Widget _buildWideLayout() {
     return Column(
       children: [
-        SizedBox(
-          height: 160,
-          child: _buildCurriculumCard(context, isWideScreen: true),
-        ),
+        _buildCurriculumCard(context, isWideScreen: true),
         const SizedBox(height: 8),
         SizedBox(
           height: 120,
@@ -454,18 +445,12 @@ class _HomePageState extends State<HomePage>
     if (_ongoingClass != null) classes.add(_ongoingClass);
     if (_upcomingClass != null) classes.add(_upcomingClass);
 
-    return SizedBox(
-      height: 105,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: classes.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final classItem = classes[index]!;
-          final isOngoing = classItem == _ongoingClass;
-          return _buildSingleClassPreview(classItem, isOngoing);
-        },
-      ),
+    return Wrap(
+      spacing: 8,
+      children: classes.map((classItem) {
+        final isOngoing = classItem == _ongoingClass;
+        return _buildSingleClassPreview(classItem!, isOngoing);
+      }).toList(),
     );
   }
 
@@ -478,59 +463,46 @@ class _HomePageState extends State<HomePage>
         ? '${startTime.format(context)} - ${endTime.format(context)}'
         : null;
 
-    return Container(
-      width: 140,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.3),
-          width: 1,
+    final textStyle1 = TextStyle(
+      fontSize: 12,
+      color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+      fontWeight: FontWeight.w500,
+    );
+    final textStyle2 = TextStyle(
+      fontSize: 14,
+      color: Theme.of(context).colorScheme.onPrimaryContainer,
+      fontWeight: FontWeight.bold,
+    );
+    final textStyle3 = TextStyle(
+      fontSize: 12,
+      color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.9),
+    );
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 220),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            isOngoing ? '进行中' : '接下来',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            classItem.className,
-            style: TextStyle(
-              fontSize: 14,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.bold,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          if (periodTimeRange != null)
-            Text(
-              periodTimeRange,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.9),
-              ),
-            ),
-          Text(
-            classItem.locationName,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.9),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(isOngoing ? '  进行中' : '  接下来', style: textStyle1),
+            const SizedBox(height: 4),
+            Text('  ${classItem.className}', style: textStyle2),
+            const SizedBox(height: 2),
+            if (periodTimeRange != null)
+              Text('  $periodTimeRange', style: textStyle3),
+            Text(classItem.locationName, style: textStyle3),
+          ],
+        ),
       ),
     );
   }
@@ -598,13 +570,13 @@ class _HomePageState extends State<HomePage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.wifi,
+                    Icons.cottage,
                     color: theme.colorScheme.onPrimaryContainer,
                     size: 22,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '校园网',
+                    '生活服务',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.onPrimaryContainer,
@@ -613,14 +585,6 @@ class _HomePageState extends State<HomePage>
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                "校园网自助服务与流量监控",
-                style: TextStyle(
-                  fontSize: 14,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 16),
               if (isNarrowScreen) ...[
                 _buildNetNarrowLayout(),
               ] else ...[

@@ -44,7 +44,7 @@ abstract class UnifiedAppBar extends StatelessWidget
 }
 
 class TopAppBar extends UnifiedAppBar {
-  const TopAppBar({super.key, super.actions}) : super(title: '大贝壳');
+  const TopAppBar({super.key, super.actions}) : super(title: '大贝壳NEXT');
 
   @override
   Color getBackgroundColor(BuildContext context) {

@@ -4,6 +4,21 @@ import '/services/provider.dart';
 import '/main.dart';
 import '/types/preferences.dart';
 
+const _accentPresets = [
+  null,
+  Color(0xFF005B94),
+  Color(0xFF1B6EF3),
+  Color(0xFF6750A4),
+  Color(0xFFBA1A1A),
+  Color(0xFF9C4040),
+  Color(0xFF006D3B),
+  Color(0xFF006A6A),
+  Color(0xFFB50071),
+  Color(0xFF7A5900),
+  Color(0xFFE65100),
+  Color(0xFF00668C),
+];
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -23,12 +38,10 @@ class _SettingsPageState extends State<SettingsPage> {
         padding: const EdgeInsets.all(16),
         children: [
           SizedBox(height: MediaQuery.of(context).padding.top + 16),
-          const Text(
-            '设置',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          ),
+          _buildThemeModeRow(),
           const SizedBox(height: 16),
-          _buildAppearanceSection(),
+          _buildAccentColorPicker(),
+          const SizedBox(height: 24),
           _buildDataSection(),
           if (kDebugMode) _buildServiceSection(),
         ],
@@ -36,29 +49,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildAppearanceSection() {
-    return Card.filled(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '外观',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildThemeModeSelector(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildThemeModeSelector() {
+  Widget _buildThemeModeRow() {
     return Row(
       children: [
         Expanded(
@@ -75,7 +66,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
-        const SizedBox(width: 8),
         IconButton(
           icon: Icon(_getThemeIcon(ThemeManager.currentThemeMode)),
           onPressed: () {
@@ -89,6 +79,47 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildAccentColorPicker() {
+    final currentColor = ThemeManager.currentAccentColor;
+    final theme = Theme.of(context);
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: _accentPresets.map((color) {
+        final isSelected =
+            (color == null && currentColor == null) ||
+            (color != null &&
+                currentColor != null &&
+                color.toARGB32() == currentColor.toARGB32());
+
+        return GestureDetector(
+          onTap: () {
+            ThemeManager.updateAccentColor(color);
+            setState(() {});
+          },
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: isSelected
+                  ? Border.all(color: theme.colorScheme.primary, width: 3)
+                  : Border.all(
+                      color: theme.colorScheme.outlineVariant,
+                      width: 1.5,
+                    ),
+              color: color,
+            ),
+            child: color == null
+                ? Icon(Icons.auto_awesome, size: 20, color: theme.colorScheme.primary)
+                : null,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildDataSection() {
     return Card.filled(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -99,9 +130,7 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             Text(
               '数据',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -120,7 +149,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 8),
             _buildDataItem(
               title: '偏好设置',
-              subtitle: '清除所有偏好设置，包括跨设备同步的绑定、本地设置等。',
+              subtitle: '清除所有偏好设置，包括本地设置等。',
               isLoading: _isClearingPrefs,
               onPressed: _clearPref,
             ),
@@ -156,11 +185,7 @@ class _SettingsPageState extends State<SettingsPage> {
         FilledButton.tonalIcon(
           onPressed: isLoading ? null : onPressed,
           icon: isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.clear, size: 18),
           label: const Text('清除'),
         ),
@@ -176,12 +201,7 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'API 配置',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
+            Text('API 配置', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(
               '仅供开发人员调试使用。',
@@ -206,16 +226,6 @@ class _SettingsPageState extends State<SettingsPage> {
               currentValue: _serviceProvider.netService.baseUrl,
               onChanged: (value) {
                 _serviceProvider.netService.baseUrl = value;
-                _serviceProvider.saveServiceSettings();
-              },
-            ),
-            const SizedBox(height: 16),
-            _buildServiceUrlConfig(
-              label: '同步服务',
-              defaultValue: _serviceProvider.syncService.defaultBaseUrl,
-              currentValue: _serviceProvider.syncService.baseUrl,
-              onChanged: (value) {
-                _serviceProvider.syncService.baseUrl = value;
                 _serviceProvider.saveServiceSettings();
               },
             ),
@@ -245,9 +255,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 controller: controller,
                 decoration: InputDecoration(border: const OutlineInputBorder()),
                 onSubmitted: (value) {
-                  final newUrl = value.trim().isEmpty
-                      ? defaultValue
-                      : value.trim();
+                  final newUrl = value.trim().isEmpty ? defaultValue : value.trim();
                   onChanged(newUrl);
                   setState(() {});
                 },
@@ -276,14 +284,8 @@ class _SettingsPageState extends State<SettingsPage> {
         title: const Text('确认清除'),
         content: const Text('确定要清除所有配置数据吗？此操作不可撤销。'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('确认'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('确认')),
         ],
       ),
     );
@@ -294,20 +296,14 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       _serviceProvider.storeService.delAllConfig();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('配置数据已清除')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('配置数据已清除')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('清除配置数据失败: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('清除配置数据失败: $e')));
       }
     } finally {
-      if (mounted) {
-        setState(() => _isClearingCache = false);
-      }
+      if (mounted) setState(() => _isClearingCache = false);
     }
   }
 
@@ -318,14 +314,8 @@ class _SettingsPageState extends State<SettingsPage> {
         title: const Text('确认清除'),
         content: const Text('确定要清除所有偏好设置吗？此操作不可撤销。'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('确认'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('确认')),
         ],
       ),
     );
@@ -336,42 +326,30 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       _serviceProvider.storeService.delAllPref();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('偏好设置已清除')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('偏好设置已清除')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('清除偏好设置失败: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('清除偏好设置失败: $e')));
       }
     } finally {
-      if (mounted) {
-        setState(() => _isClearingPrefs = false);
-      }
+      if (mounted) setState(() => _isClearingPrefs = false);
     }
   }
 
   IconData _getThemeIcon(ThemeMode mode) {
     switch (mode) {
-      case ThemeMode.system:
-        return Icons.brightness_auto;
-      case ThemeMode.light:
-        return Icons.light_mode;
-      case ThemeMode.dark:
-        return Icons.dark_mode;
+      case ThemeMode.system: return Icons.brightness_auto;
+      case ThemeMode.light: return Icons.light_mode;
+      case ThemeMode.dark: return Icons.dark_mode;
     }
   }
 
   ThemeMode _getNextThemeMode(ThemeMode current) {
     switch (current) {
-      case ThemeMode.system:
-        return ThemeMode.light;
-      case ThemeMode.light:
-        return ThemeMode.dark;
-      case ThemeMode.dark:
-        return ThemeMode.system;
+      case ThemeMode.system: return ThemeMode.light;
+      case ThemeMode.light: return ThemeMode.dark;
+      case ThemeMode.dark: return ThemeMode.system;
     }
   }
 }

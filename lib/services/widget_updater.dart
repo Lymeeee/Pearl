@@ -13,6 +13,10 @@ class WidgetUpdater {
     if (data == null) {
       _send({
         'hasClass': false,
+        'className': '课表未加载',
+        'timeRange': '登录教务账户后自动更新',
+        'location': '',
+        'teacher': '',
       });
       return;
     }
@@ -24,6 +28,10 @@ class WidgetUpdater {
     if (targetClass == null) {
       _send({
         'hasClass': false,
+        'className': '今日无课',
+        'timeRange': '好好休息吧~',
+        'location': '',
+        'teacher': '',
       });
       return;
     }

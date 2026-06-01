@@ -20,21 +20,33 @@ void main() async {
 
 class ThemeManager {
   static ThemeMode _currentThemeMode = ThemeMode.system;
+  static Color? _currentAccentColor;
   static void Function(ThemeMode)? _updateCallback;
+  static void Function(Color?)? _accentColorCallback;
 
   static ThemeMode get currentThemeMode => _currentThemeMode;
+  static Color? get currentAccentColor => _currentAccentColor;
 
   static void initialize(
     ThemeMode initialMode,
+    Color? initialAccentColor,
     void Function(ThemeMode) updateCallback,
+    void Function(Color?) accentColorCallback,
   ) {
     _currentThemeMode = initialMode;
+    _currentAccentColor = initialAccentColor;
     _updateCallback = updateCallback;
+    _accentColorCallback = accentColorCallback;
   }
 
   static void updateThemeMode(ThemeMode themeMode) {
     _currentThemeMode = themeMode;
     _updateCallback?.call(themeMode);
+  }
+
+  static void updateAccentColor(Color? color) {
+    _currentAccentColor = color;
+    _accentColorCallback?.call(color);
   }
 }
 
@@ -48,27 +60,44 @@ class Main extends StatefulWidget {
 class _MainState extends State<Main> {
   final ServiceProvider _serviceProvider = ServiceProvider.instance;
   late ThemeMode _themeMode;
+  Color? _accentColor;
 
   _MainState() {
-    _themeMode =
+    final appSettings =
         _serviceProvider.storeService
-            .getPref<AppSettings>('app_settings', AppSettings.fromJson)
-            ?.themeMode ??
-        ThemeMode.system;
+            .getPref<AppSettings>('app_settings', AppSettings.fromJson);
 
-    ThemeManager.initialize(_themeMode, (ThemeMode themeMode) {
-      setState(() {
-        _themeMode = themeMode;
-      });
-      final appSettings = AppSettings(themeMode: themeMode);
-      _serviceProvider.storeService.putPref<AppSettings>(
-        'app_settings',
-        appSettings,
-      );
-    });
+    _themeMode = appSettings?.themeMode ?? ThemeMode.system;
+    _accentColor = appSettings?.accentColor;
+
+    ThemeManager.initialize(
+      _themeMode,
+      _accentColor,
+      (ThemeMode themeMode) {
+        setState(() => _themeMode = themeMode);
+        _persistSettings();
+      },
+      (Color? accentColor) {
+        setState(() => _accentColor = accentColor);
+        _persistSettings();
+      },
+    );
   }
 
-  static const Color _seedColor = Color.fromRGBO(0, 91, 148, 1.0);
+  void _persistSettings() {
+    final appSettings = AppSettings(
+      themeMode: _themeMode,
+      accentColorValue: _accentColor?.toARGB32(),
+    );
+    _serviceProvider.storeService.putPref<AppSettings>(
+      'app_settings',
+      appSettings,
+    );
+  }
+
+  static const Color _defaultSeedColor = Color.fromRGBO(0, 91, 148, 1.0);
+
+  Color get _effectiveSeedColor => _accentColor ?? _defaultSeedColor;
 
   static ThemeData _buildTheme(ColorScheme colorScheme) {
     return ThemeData(
@@ -204,21 +233,26 @@ class _MainState extends State<Main> {
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        final lightScheme = lightDynamic ??
-            ColorScheme.fromSeed(
-              seedColor: _seedColor,
-              brightness: Brightness.light,
-              dynamicSchemeVariant: DynamicSchemeVariant.rainbow,
-            );
-        final darkScheme = darkDynamic ??
-            ColorScheme.fromSeed(
-              seedColor: _seedColor,
-              brightness: Brightness.dark,
-              dynamicSchemeVariant: DynamicSchemeVariant.rainbow,
-            );
+        final seed = _effectiveSeedColor;
+        final hasCustomAccent = _accentColor != null;
+
+        final lightScheme = (hasCustomAccent || lightDynamic == null)
+            ? ColorScheme.fromSeed(
+                seedColor: seed,
+                brightness: Brightness.light,
+                dynamicSchemeVariant: DynamicSchemeVariant.rainbow,
+              )
+            : lightDynamic;
+        final darkScheme = (hasCustomAccent || darkDynamic == null)
+            ? ColorScheme.fromSeed(
+                seedColor: seed,
+                brightness: Brightness.dark,
+                dynamicSchemeVariant: DynamicSchemeVariant.rainbow,
+              )
+            : darkDynamic;
 
         return MaterialApp.router(
-          title: 'TheBeike',
+          title: 'Beike NEXT',
           theme: _buildTheme(lightScheme),
           darkTheme: _buildTheme(darkScheme),
           themeMode: _themeMode,

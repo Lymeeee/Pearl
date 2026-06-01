@@ -10,7 +10,6 @@ import '/services/net/drcom_net.dart';
 import '/services/sync/base.dart';
 import '/services/sync/sync_service.dart';
 import '/types/courses.dart';
-import '/types/sync.dart';
 import '/types/preferences.dart';
 
 class ServiceProvider extends ChangeNotifier {
@@ -81,9 +80,6 @@ class ServiceProvider extends ChangeNotifier {
         if (settingsPreference.netBaseUrl != null) {
           _netService.baseUrl = settingsPreference.netBaseUrl!;
         }
-        if (settingsPreference.syncBaseUrl != null) {
-          _syncService.baseUrl = settingsPreference.syncBaseUrl!;
-        }
       }
     } catch (e) {
       if (kDebugMode) print('Failed to load service settings: $e');
@@ -100,9 +96,6 @@ class ServiceProvider extends ChangeNotifier {
         netBaseUrl: _netService.baseUrl == _netService.defaultBaseUrl
             ? null
             : _netService.baseUrl,
-        syncBaseUrl: _syncService.baseUrl == _syncService.defaultBaseUrl
-            ? null
-            : _syncService.baseUrl,
       );
       storeService.putPref("service_settings", settingsPreference);
     } catch (e) {
@@ -192,85 +185,8 @@ class ServiceProvider extends ChangeNotifier {
     return integratedData;
   }
 
+
   //
-
-  /// Maybe syncs config if last sync was more than 10 seconds ago.
-  /// Silently ignores any sync errors.
-  Future<void> maybeSyncAndApplyConfig() async {
-    try {
-      final syncData = _storeService.getPref<SyncDeviceData>(
-        'sync_device',
-        SyncDeviceData.fromJson,
-      );
-
-      if (syncData == null ||
-          syncData.deviceId == null ||
-          syncData.groupId == null) {
-        return; // No sync data available
-      }
-
-      // Check if last sync was too recent
-      final lastSync = _syncService.lastSyncStatus;
-      if (lastSync != null) {
-        final elapsed = DateTime.now().difference(lastSync.timestamp);
-        if (elapsed.inSeconds < 10) {
-          return; // Too soon, skip update
-        }
-      }
-
-      // Perform the sync
-      await syncAndApplyConfig();
-    } catch (e) {
-      // Silently ignore sync errors
-      if (kDebugMode) {
-        print('maybeUpdateConfigAndApplyChanges failed: $e');
-      }
-    }
-  }
-
-  /// Centralized sync hook so any caller gets consistent handling and UI updates.
-  Future<Map<String, dynamic>?> syncAndApplyConfig() async {
-    final syncData = _storeService.getPref<SyncDeviceData>(
-      'sync_device',
-      SyncDeviceData.fromJson,
-    );
-    if (syncData?.deviceId == null || syncData?.groupId == null) {
-      throw Exception('Missing sync device/group id');
-    }
-
-    final payload = _storeService.getAllConfigs();
-    final newConfigs = await _syncService.update(
-      deviceId: syncData!.deviceId!,
-      groupId: syncData.groupId!,
-      config: payload,
-    );
-    await _handleSyncedConfigs(newConfigs);
-    return newConfigs;
-  }
-
-  Future<void> _handleSyncedConfigs(Map<String, dynamic>? newConfigs) async {
-    if (newConfigs == null) return;
-    _storeService.updateConfigs(newConfigs);
-
-    try {
-      // If a fresh course account cookie is synced while not online, attempt auto-login.
-      if (!_coursesService.isOnline) {
-        final syncedLogin = _storeService.getConfig<UserLoginIntegratedData>(
-          "course_account_data",
-          UserLoginIntegratedData.fromJson,
-        );
-        if (syncedLogin?.cookie != null) {
-          await _coursesService.login(syncedLogin!.cookie!);
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('handleSyncedConfigs failed: $e');
-      }
-    }
-
-    notifyListeners();
-  }
 
   //
 

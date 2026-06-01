@@ -65,7 +65,10 @@ Json? _$JsonConverterToJson<Json, Value>(
 ) => value == null ? null : toJson(value);
 
 AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) =>
-    AppSettings(themeMode: $enumDecode(_$ThemeModeEnumMap, json['themeMode']))
+    AppSettings(
+      themeMode: $enumDecode(_$ThemeModeEnumMap, json['themeMode']),
+      accentColorValue: json['accentColor'] as int?,
+    )
       ..$lastUpdateTime = _$JsonConverterFromJson<String, DateTime>(
         json[r'$lastUpdateTime'],
         const UTCConverter().fromJson,
@@ -78,6 +81,7 @@ Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
         const UTCConverter().toJson,
       ),
       'themeMode': _$ThemeModeEnumMap[instance.themeMode]!,
+      'accentColor': instance.accentColorValue,
     };
 
 const _$ThemeModeEnumMap = {
@@ -115,7 +119,6 @@ ServiceSettingsPreference _$ServiceSettingsPreferenceFromJson(
     ServiceSettingsPreference(
         coursesBaseUrl: json['coursesBaseUrl'] as String?,
         netBaseUrl: json['netBaseUrl'] as String?,
-        syncBaseUrl: json['syncBaseUrl'] as String?,
       )
       ..$lastUpdateTime = _$JsonConverterFromJson<String, DateTime>(
         json[r'$lastUpdateTime'],
@@ -131,5 +134,4 @@ Map<String, dynamic> _$ServiceSettingsPreferenceToJson(
   ),
   'coursesBaseUrl': instance.coursesBaseUrl,
   'netBaseUrl': instance.netBaseUrl,
-  'syncBaseUrl': instance.syncBaseUrl,
 };

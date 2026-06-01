@@ -1,5 +1,6 @@
 package cn.thebeike.app
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -7,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
+import android.os.SystemClock
 import android.widget.RemoteViews
 
 class UpcomingClassWidget : AppWidgetProvider() {
@@ -14,6 +16,8 @@ class UpcomingClassWidget : AppWidgetProvider() {
     companion object {
         private const val PREFS_NAME = "cn.thebeike.app.widget"
         private const val KEY_DATA = "upcoming_class_data"
+        private const val REFRESH_INTERVAL_MS = 5 * 60 * 1000L
+        private const val ACTION_AUTO_REFRESH = "cn.thebeike.app.AUTO_REFRESH"
 
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
             val views = buildRemoteViews(context)
@@ -35,26 +39,51 @@ class UpcomingClassWidget : AppWidgetProvider() {
             prefs.edit().putString(KEY_DATA, json).apply()
         }
 
-        private fun buildRemoteViews(context: Context): RemoteViews {
-            val views = RemoteViews(context.packageName, R.layout.widget_upcoming_class)
+        fun scheduleAutoRefresh(context: Context) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(context, UpcomingClassWidget::class.java).apply {
+                action = ACTION_AUTO_REFRESH
+            }
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+            val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, flags)
 
-            applyMonetColors(context, views)
-            fillContent(context, views)
+            val triggerAt = SystemClock.elapsedRealtime() + REFRESH_INTERVAL_MS
 
-            return views
+            // setAlarmClock is exempt from Doze and does not require
+            // SCHEDULE_EXACT_ALARM permission on Android 12+.
+            val info = AlarmManager.AlarmClockInfo(triggerAt, pendingIntent)
+            alarmManager.setAlarmClock(info, pendingIntent)
         }
 
-        private fun applyMonetColors(context: Context, views: RemoteViews) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
-
-            val surface = getMonetColor(context, android.R.color.system_accent1_10)
-                ?: getMonetColor(context, android.R.color.system_accent2_10)
-                ?: getMonetColor(context, android.R.color.system_accent3_10)
-                ?: getMonetColor(context, android.R.color.system_neutral1_10)
-
-            if (surface != null) {
-                views.setInt(R.id.widget_container, "setBackgroundColor", surface)
+        fun cancelAutoRefresh(context: Context) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(context, UpcomingClassWidget::class.java).apply {
+                action = ACTION_AUTO_REFRESH
             }
+            val flags = PendingIntent.FLAG_NO_CREATE or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+            val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, flags)
+            if (pendingIntent != null) {
+                alarmManager.cancel(pendingIntent)
+                pendingIntent.cancel()
+            }
+        }
+
+        private fun getNoClassMessage(): String {
+            val calendar = java.util.Calendar.getInstance()
+            val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+            return if (dayOfWeek == java.util.Calendar.SATURDAY || dayOfWeek == java.util.Calendar.SUNDAY) {
+                "周末愉快～"
+            } else {
+                "今日课毕，宜休闲玩耍"
+            }
+        }
+
+        private fun buildRemoteViews(context: Context): RemoteViews {
+            val views = RemoteViews(context.packageName, R.layout.widget_upcoming_class)
+            fillContent(context, views)
+            return views
         }
 
         private fun fillContent(context: Context, views: RemoteViews) {
@@ -83,7 +112,7 @@ class UpcomingClassWidget : AppWidgetProvider() {
             views.setInt(R.id.time_text, "setVisibility", 0x00000008)      // GONE
             views.setInt(R.id.location_text, "setVisibility", 0x00000008)
             views.setInt(R.id.teacher_text, "setVisibility", 0x00000008)
-            views.setTextViewText(R.id.class_name_text, "今天没有课了")
+            views.setTextViewText(R.id.class_name_text, getNoClassMessage())
             attachClickIntent(context, views)
         }
 
@@ -97,10 +126,6 @@ class UpcomingClassWidget : AppWidgetProvider() {
                 views.setOnClickPendingIntent(R.id.widget_container, pi)
             }
         }
-
-        private fun getMonetColor(context: Context, resId: Int): Int? {
-            return try { context.getColor(resId) } catch (_: Exception) { null }
-        }
     }
 
     override fun onUpdate(
@@ -113,9 +138,22 @@ class UpcomingClassWidget : AppWidgetProvider() {
         }
     }
 
-    override fun onEnabled(context: Context) { }
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        when (intent.action) {
+            ACTION_AUTO_REFRESH -> {
+                updateAllWidgets(context)
+                scheduleAutoRefresh(context)
+            }
+        }
+    }
+
+    override fun onEnabled(context: Context) {
+        scheduleAutoRefresh(context)
+    }
 
     override fun onDisabled(context: Context) {
+        cancelAutoRefresh(context)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().clear().apply()
     }

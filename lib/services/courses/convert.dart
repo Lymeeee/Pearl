@@ -69,21 +69,21 @@ extension ClassItemUstbByytExtension on ClassItem {
       String periodName = '';
 
       if (3 <= lines.length && lines.length <= 4) {
-        className = lines[0];
-        teacherName = lines[1];
-        weeksText = lines[2];
+        className = lines[0].trim();
+        teacherName = lines[1].trim();
+        weeksText = lines[2].trim();
       } else if (lines.length == 5) {
-        className = lines[0];
-        teacherName = lines[1];
-        weeksText = lines[2];
-        locationName = lines[3];
-        periodName = lines[4];
+        className = lines[0].trim();
+        teacherName = lines[1].trim();
+        weeksText = lines[2].trim();
+        locationName = lines[3].trim();
+        periodName = lines[4].trim();
       } else if (lines.length == 6) {
-        className = "${lines[0]}\n${lines[1]}";
-        teacherName = lines[2];
-        weeksText = lines[3];
-        locationName = lines[4];
-        periodName = lines[5];
+        className = "${lines[0]}\n${lines[1]}".trim();
+        teacherName = lines[2].trim();
+        weeksText = lines[3].trim();
+        locationName = lines[4].trim();
+        periodName = lines[5].trim();
       } else {
         return null;
       }

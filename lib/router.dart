@@ -11,7 +11,7 @@ import 'pages/courses/grade/index.dart';
 import 'pages/courses/account/index.dart';
 import 'pages/net/dashboard/index.dart';
 import 'pages/net/traffic/index.dart';
-import 'pages/sync/index.dart';
+import 'pages/net/electricity/index.dart';
 import 'pages/more/settings.dart';
 import 'pages/more/update.dart';
 
@@ -40,7 +40,7 @@ const _bottomTabs = [
     icon: Icons.more_horiz,
     label: '更多',
     rootPath: '/more/settings',
-    pathPrefixes: ['/more/', '/sync', '/courses/', '/net/'],
+    pathPrefixes: ['/more/', '/courses/', '/net/'],
   ),
 ];
 
@@ -93,14 +93,14 @@ class AppRouter {
         builder: (context, data) => MainLayout(child: const NetTrafficPage()),
       ),
       NamedRouteDef(
+        name: 'NetElectricityRoute',
+        path: '/net/electricity',
+        builder: (context, data) => MainLayout(child: const ElectricityPage()),
+      ),
+      NamedRouteDef(
         name: 'SettingsRoute',
         path: '/more/settings',
         builder: (context, data) => MainLayout(child: const SettingsPage()),
-      ),
-      NamedRouteDef(
-        name: 'SyncRoute',
-        path: '/sync',
-        builder: (context, data) => MainLayout(child: const SyncPage()),
       ),
       NamedRouteDef(
         name: 'UpdateRoute',
