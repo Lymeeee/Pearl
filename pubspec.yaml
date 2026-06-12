@@ -50,6 +50,7 @@ dependencies:
   cookie_jar: ^4.0.9
   dynamic_color: ^1.7.0
   flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.1
   pointycastle: ^3.9.1
 
 dev_dependencies:

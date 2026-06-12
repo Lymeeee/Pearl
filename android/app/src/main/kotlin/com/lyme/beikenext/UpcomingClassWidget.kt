@@ -12,6 +12,10 @@ import android.os.SystemClock
 import android.widget.RemoteViews
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.Calendar
 
 class UpcomingClassWidget : AppWidgetProvider() {
 
@@ -19,6 +23,7 @@ class UpcomingClassWidget : AppWidgetProvider() {
         private const val PREFS_NAME = "com.lyme.beikenext.widget"
         private const val KEY_LEGACY = "upcoming_class_data"
         private const val KEY_FULL_DATA = "curriculum_full_data"
+        private const val KEY_LAST_UPDATE = "curriculum_last_update"
         private const val REFRESH_INTERVAL_MS = 5 * 60 * 1000L
         private const val ACTION_AUTO_REFRESH = "com.lyme.beikenext.AUTO_REFRESH"
 
@@ -39,7 +44,11 @@ class UpcomingClassWidget : AppWidgetProvider() {
 
         fun saveFullData(context: Context, json: String) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putString(KEY_FULL_DATA, json).apply()
+            prefs.edit()
+                .putString(KEY_FULL_DATA, json)
+                .putLong(KEY_LAST_UPDATE, System.currentTimeMillis())
+                .apply()
+            scheduleWorkManagerRefresh(context)
         }
 
         fun scheduleAutoRefresh(context: Context) {
@@ -52,8 +61,24 @@ class UpcomingClassWidget : AppWidgetProvider() {
             val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, flags)
 
             val triggerAt = SystemClock.elapsedRealtime() + REFRESH_INTERVAL_MS
-            val info = AlarmManager.AlarmClockInfo(triggerAt, pendingIntent)
-            alarmManager.setAlarmClock(info, pendingIntent)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Android 12+: use setExactAndAllowWhileIdle for reliable doze-mode delivery
+                // Requires SCHEDULE_EXACT_ALARM permission (granted by system for alarm clock apps)
+                try {
+                    val info = AlarmManager.AlarmClockInfo(triggerAt, pendingIntent)
+                    alarmManager.setAlarmClock(info, pendingIntent)
+                } catch (e: SecurityException) {
+                    // Fallback: use exact alarm without clock priority
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent
+                    )
+                }
+            } else {
+                // Pre-Android 12: use setAlarmClock for best reliability
+                val info = AlarmManager.AlarmClockInfo(triggerAt, pendingIntent)
+                alarmManager.setAlarmClock(info, pendingIntent)
+            }
         }
 
         fun cancelAutoRefresh(context: Context) {
@@ -70,6 +95,84 @@ class UpcomingClassWidget : AppWidgetProvider() {
             }
         }
 
+        fun scheduleWorkManagerRefresh(context: Context) {
+            WidgetRefreshWorker.schedule(context)
+        }
+
+        private fun getWeekIndexForDate(
+            calendarDays: JSONArray?,
+            termSeason: Int,
+            maxWeekIndex: Int,
+            todayYear: Int,
+            todayMonth: Int,
+            todayDay: Int
+        ): Int? {
+            // 1. Exact match
+            if (calendarDays != null) {
+                for (i in 0 until calendarDays.length()) {
+                    val cd = calendarDays.getJSONObject(i)
+                    if (cd.optInt("year") == todayYear &&
+                        cd.optInt("month") == todayMonth &&
+                        cd.optInt("day") == todayDay
+                    ) {
+                        return cd.getInt("weekIndex")
+                    }
+                }
+            }
+
+            // 2. Summer term fallback
+            if (termSeason >= 3) return 1
+
+            // 3. Extrapolate from nearest calendar day
+            if (calendarDays == null || calendarDays.length() == 0) return null
+
+            val today = Calendar.getInstance().apply {
+                set(todayYear, todayMonth - 1, todayDay)
+            }
+
+            var baseWeek = 0
+            var minDiff = Int.MAX_VALUE
+            val baseCal = Calendar.getInstance()
+
+            for (i in 0 until calendarDays.length()) {
+                val cd = calendarDays.getJSONObject(i)
+                val cdCal = Calendar.getInstance().apply {
+                    set(cd.optInt("year"), cd.optInt("month") - 1, cd.optInt("day"))
+                }
+                val diff = Math.abs((today.timeInMillis - cdCal.timeInMillis) / (24 * 60 * 60 * 1000))
+                if (diff < minDiff) {
+                    minDiff = diff.toInt()
+                    baseWeek = cd.getInt("weekIndex")
+                    baseCal.timeInMillis = cdCal.timeInMillis
+                }
+            }
+
+            if (baseWeek == 0) return null
+
+            val daysDiff = ((today.timeInMillis - baseCal.timeInMillis) / (24 * 60 * 60 * 1000)).toInt()
+            val weeksDiff = Math.round(daysDiff / 7.0).toInt()
+            return (baseWeek + weeksDiff).coerceIn(1, maxWeekIndex)
+        }
+
+        private fun getMaxWeekIndex(allClasses: JSONArray, calendarDays: JSONArray?): Int {
+            var maxFromClasses = 0
+            for (i in 0 until allClasses.length()) {
+                val weeks = allClasses.getJSONObject(i).optJSONArray("weeks") ?: continue
+                for (j in 0 until weeks.length()) {
+                    val w = weeks.optInt(j)
+                    if (w > maxFromClasses) maxFromClasses = w
+                }
+            }
+            var maxFromCalendar = 0
+            if (calendarDays != null) {
+                for (i in 0 until calendarDays.length()) {
+                    val w = calendarDays.getJSONObject(i).optInt("weekIndex")
+                    if (w > maxFromCalendar) maxFromCalendar = w
+                }
+            }
+            return maxOf(maxFromClasses, maxFromCalendar, 1)
+        }
+
         private fun formatTime(minuteOfDay: Int): String {
             val h = minuteOfDay / 60
             val m = minuteOfDay % 60
@@ -77,7 +180,7 @@ class UpcomingClassWidget : AppWidgetProvider() {
         }
 
         private fun convertToMondayBased(javaDayOfWeek: Int): Int {
-            return if (javaDayOfWeek == java.util.Calendar.SUNDAY) 7 else javaDayOfWeek - 1
+            return if (javaDayOfWeek == Calendar.SUNDAY) 7 else javaDayOfWeek - 1
         }
 
         private fun buildRemoteViews(context: Context): RemoteViews {
@@ -90,12 +193,17 @@ class UpcomingClassWidget : AppWidgetProvider() {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val json = prefs.getString(KEY_FULL_DATA, null)
 
+            // Show last update time
+            val lastUpdate = prefs.getLong(KEY_LAST_UPDATE, 0)
+            val lastUpdateText = if (lastUpdate > 0) {
+                val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+                "更新于 ${sdf.format(Date(lastUpdate))}"
+            } else null
+
             if (json == null) {
-                views.setInt(R.id.label_text, "setVisibility", 0x00000008)
-                views.setInt(R.id.time_text, "setVisibility", 0x00000008)
-                views.setInt(R.id.location_text, "setVisibility", 0x00000008)
-                views.setInt(R.id.teacher_text, "setVisibility", 0x00000008)
+                hideAllFields(views)
                 views.setTextViewText(R.id.class_name_text, "等待数据同步…")
+                if (lastUpdateText != null) views.setTextViewText(R.id.update_text, lastUpdateText)
                 attachClickIntent(context, views)
                 return
             }
@@ -103,76 +211,53 @@ class UpcomingClassWidget : AppWidgetProvider() {
             try {
                 val data = JSONObject(json)
                 if (!data.optBoolean("hasData", false)) {
-                    views.setInt(R.id.label_text, "setVisibility", 0x00000008)
-                    views.setInt(R.id.time_text, "setVisibility", 0x00000008)
-                    views.setInt(R.id.location_text, "setVisibility", 0x00000008)
-                    views.setInt(R.id.teacher_text, "setVisibility", 0x00000008)
+                    hideAllFields(views)
                     views.setTextViewText(R.id.class_name_text, "课表未加载")
                     attachClickIntent(context, views)
                     return
                 }
 
                 if (data.optBoolean("holidayMode", false)) {
-                    views.setInt(R.id.label_text, "setVisibility", 0x00000008)
-                    views.setInt(R.id.time_text, "setVisibility", 0x00000008)
-                    views.setInt(R.id.location_text, "setVisibility", 0x00000008)
-                    views.setInt(R.id.teacher_text, "setVisibility", 0x00000008)
+                    hideAllFields(views)
                     views.setTextViewText(R.id.class_name_text, "假期快乐，祝你天天开心～")
                     attachClickIntent(context, views)
                     return
                 }
 
-                val calendar = java.util.Calendar.getInstance()
-                val todayYear = calendar.get(java.util.Calendar.YEAR)
-                val todayMonth = calendar.get(java.util.Calendar.MONTH) + 1
-                val todayDay = calendar.get(java.util.Calendar.DAY_OF_MONTH)
-                val todayWeekday = convertToMondayBased(calendar.get(java.util.Calendar.DAY_OF_WEEK))
+                val calendar = Calendar.getInstance()
+                val todayYear = calendar.get(Calendar.YEAR)
+                val todayMonth = calendar.get(Calendar.MONTH) + 1
+                val todayDay = calendar.get(Calendar.DAY_OF_MONTH)
+                val todayWeekday = convertToMondayBased(calendar.get(Calendar.DAY_OF_WEEK))
                 val termSeason = data.optInt("termSeason", 1)
                 val isSummerTerm = termSeason >= 3
 
-                // Find today's week index from calendar days
-                var todayWeekIndex: Int? = null
-                val calendarDays = data.optJSONArray("calendarDays")
-                if (calendarDays != null) {
-                    for (i in 0 until calendarDays.length()) {
-                        val cd = calendarDays.getJSONObject(i)
-                        if (cd.optInt("year") == todayYear &&
-                            cd.optInt("month") == todayMonth &&
-                            cd.optInt("day") == todayDay) {
-                            todayWeekIndex = cd.getInt("weekIndex")
-                            break
-                        }
-                    }
-                }
-
-                // Summer term: repeat Monday week 1 every day
-                if (todayWeekIndex == null) {
-                    if (isSummerTerm) {
-                        todayWeekIndex = 1
-                    } else {
-                        views.setInt(R.id.label_text, "setVisibility", 0x00000008)
-                        views.setInt(R.id.time_text, "setVisibility", 0x00000008)
-                        views.setInt(R.id.location_text, "setVisibility", 0x00000008)
-                        views.setInt(R.id.teacher_text, "setVisibility", 0x00000008)
-                        views.setTextViewText(R.id.class_name_text, "课表数据未就绪")
-                        attachClickIntent(context, views)
-                        return
-                    }
-                }
-
                 val allClasses = data.optJSONArray("allClasses") ?: run {
-                    showNoClass(views, context, "课表数据异常", "")
-                    return
+                    hideAllFields(views); views.setTextViewText(R.id.class_name_text, "课表数据异常"); return
                 }
                 val allPeriods = data.optJSONArray("allPeriods") ?: run {
-                    showNoClass(views, context, "课表数据异常", "")
+                    hideAllFields(views); views.setTextViewText(R.id.class_name_text, "课表数据异常"); return
+                }
+                val calendarDays = data.optJSONArray("calendarDays")
+                val maxWeek = getMaxWeekIndex(allClasses, calendarDays)
+
+                // Find or extrapolate today's week index
+                val todayWeekIndex = getWeekIndexForDate(
+                    calendarDays, termSeason, maxWeek,
+                    todayYear, todayMonth, todayDay
+                )
+
+                if (todayWeekIndex == null) {
+                    hideAllFields(views)
+                    views.setTextViewText(R.id.class_name_text, "课表数据未就绪")
+                    attachClickIntent(context, views)
                     return
                 }
 
                 // Summer term: show Monday schedule every day
                 val lookupWeekday = if (isSummerTerm) 1 else todayWeekday
 
-                // Filter today's valid classes
+                // Filter today's classes
                 val todayClasses = mutableListOf<JSONObject>()
                 for (i in 0 until allClasses.length()) {
                     val cls = allClasses.getJSONObject(i)
@@ -188,115 +273,127 @@ class UpcomingClassWidget : AppWidgetProvider() {
 
                 if (todayClasses.isEmpty()) {
                     val isWeekend = todayWeekday >= 6
-                    showNoClass(views, context,
-                        if (isWeekend) "周末愉快～" else "今日无课",
-                        if (isWeekend) "" else "好好休息吧~")
-                    return
-                }
-
-                // Compute start/end times for each class
-                data class TimedClass(
-                    val className: String,
-                    val teacherName: String,
-                    val locationName: String,
-                    val startMinute: Int,
-                    val endMinute: Int
-                )
-
-                val timedClasses = todayClasses.mapNotNull { cls ->
-                    val majorId = cls.optInt("period")
-                    var earliestStart = Int.MAX_VALUE
-                    var latestEnd = Int.MIN_VALUE
-
-                    for (i in 0 until allPeriods.length()) {
-                        val period = allPeriods.getJSONObject(i)
-                        if (period.optInt("majorId") != majorId) continue
-                        val startStr = period.optString("minorStartTime")
-                        val endStr = period.optString("minorEndTime")
-                        if (startStr.isEmpty() || endStr.isEmpty()) continue
-
-                        val sp = startStr.split(":")
-                        val ep = endStr.split(":")
-                        if (sp.size < 2 || ep.size < 2) continue
-                        val sm = sp[0].toIntOrNull() ?: continue
-                        val s = sm * 60 + (sp[1].toIntOrNull() ?: continue)
-                        val em = ep[0].toIntOrNull() ?: continue
-                        val e = em * 60 + (ep[1].toIntOrNull() ?: continue)
-
-                        if (s < earliestStart) earliestStart = s
-                        if (e > latestEnd) latestEnd = e
-                    }
-
-                    if (earliestStart == Int.MAX_VALUE) null
-                    else TimedClass(
-                        className = cls.optString("className", ""),
-                        teacherName = cls.optString("teacherName", ""),
-                        locationName = cls.optString("locationName", ""),
-                        startMinute = earliestStart,
-                        endMinute = latestEnd
-                    )
-                }.sortedBy { it.startMinute }
-
-                if (timedClasses.isEmpty()) {
-                    showNoClass(views, context, "今日无课", "好好休息吧~")
-                    return
-                }
-
-                val nowMinute = calendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 +
-                        calendar.get(java.util.Calendar.MINUTE)
-
-                // Find ongoing or next class
-                var currentClass: TimedClass? = null
-                var nextClass: TimedClass? = null
-
-                for (tc in timedClasses) {
-                    if (nowMinute >= tc.startMinute && nowMinute < tc.endMinute) {
-                        currentClass = tc
-                    } else if (nowMinute < tc.startMinute && nextClass == null) {
-                        nextClass = tc
-                    }
-                }
-
-                val target = currentClass ?: nextClass
-                if (target != null) {
-                    val label = if (currentClass != null) "进行中" else "接下来"
-                    val timeRange = if (currentClass != null) {
-                        "进行中 - ${formatTime(target.endMinute)}"
-                    } else {
-                        "${formatTime(target.startMinute)} - ${formatTime(target.endMinute)}"
-                    }
-
-                    views.setInt(R.id.label_text, "setVisibility", 0x00000000)     // VISIBLE
-                    views.setTextViewText(R.id.label_text, label)
-                    views.setInt(R.id.time_text, "setVisibility", 0x00000000)      // VISIBLE
-                    views.setInt(R.id.location_text, "setVisibility", 0x00000000)
-                    views.setInt(R.id.teacher_text, "setVisibility", 0x00000000)
-                    views.setTextViewText(R.id.class_name_text, target.className)
-                    views.setTextViewText(R.id.time_text, timeRange)
-                    views.setTextViewText(R.id.location_text, target.locationName)
-                    views.setTextViewText(R.id.teacher_text, target.teacherName)
-                } else {
-                    views.setInt(R.id.label_text, "setVisibility", 0x00000008)     // GONE
-                    views.setInt(R.id.time_text, "setVisibility", 0x00000008)      // GONE
+                    hideAllFields(views)
+                    views.setTextViewText(R.id.class_name_text,
+                        if (isWeekend) "周末愉快～" else "今日无课")
                     views.setInt(R.id.location_text, "setVisibility", 0x00000008)
                     views.setInt(R.id.teacher_text, "setVisibility", 0x00000008)
-                    views.setTextViewText(R.id.class_name_text, "今日课毕")
+                } else {
+                    renderClassInfo(calendar, allPeriods, todayClasses, views)
+                }
+
+                if (lastUpdateText != null) {
+                    views.setInt(R.id.update_text, "setVisibility", 0x00000000)
+                    views.setTextViewText(R.id.update_text, lastUpdateText)
                 }
                 attachClickIntent(context, views)
 
             } catch (e: Exception) {
-                showNoClass(views, context, "数据解析失败", "请打开App刷新")
+                hideAllFields(views)
+                views.setTextViewText(R.id.class_name_text, "数据解析失败")
+                if (lastUpdateText != null) views.setTextViewText(R.id.update_text, lastUpdateText)
+                attachClickIntent(context, views)
             }
         }
 
-        private fun showNoClass(views: RemoteViews, context: Context,
-                                title: String, subtitle: String) {
-            views.setInt(R.id.label_text, "setVisibility", 0x00000008)     // GONE
-            views.setInt(R.id.time_text, "setVisibility", 0x00000008)      // GONE
+        private fun hideAllFields(views: RemoteViews) {
+            views.setInt(R.id.label_text, "setVisibility", 0x00000008)
+            views.setInt(R.id.time_text, "setVisibility", 0x00000008)
             views.setInt(R.id.location_text, "setVisibility", 0x00000008)
             views.setInt(R.id.teacher_text, "setVisibility", 0x00000008)
-            views.setTextViewText(R.id.class_name_text, title)
-            attachClickIntent(context, views)
+            views.setInt(R.id.update_text, "setVisibility", 0x00000008)
+        }
+
+        private fun renderClassInfo(
+            calendar: Calendar,
+            allPeriods: JSONArray,
+            todayClasses: List<JSONObject>,
+            views: RemoteViews
+        ) {
+            data class TimedClass(
+                val className: String,
+                val teacherName: String,
+                val locationName: String,
+                val startMinute: Int,
+                val endMinute: Int
+            )
+
+            val timedClasses = todayClasses.mapNotNull { cls ->
+                val majorId = cls.optInt("period")
+                var earliestStart = Int.MAX_VALUE
+                var latestEnd = Int.MIN_VALUE
+
+                for (i in 0 until allPeriods.length()) {
+                    val period = allPeriods.getJSONObject(i)
+                    if (period.optInt("majorId") != majorId) continue
+                    val startStr = period.optString("minorStartTime")
+                    val endStr = period.optString("minorEndTime")
+                    if (startStr.isEmpty() || endStr.isEmpty()) continue
+
+                    val sp = startStr.split(":")
+                    val ep = endStr.split(":")
+                    if (sp.size < 2 || ep.size < 2) continue
+                    val sm = sp[0].toIntOrNull() ?: continue
+                    val s = sm * 60 + (sp[1].toIntOrNull() ?: continue)
+                    val em = ep[0].toIntOrNull() ?: continue
+                    val e = em * 60 + (ep[1].toIntOrNull() ?: continue)
+
+                    if (s < earliestStart) earliestStart = s
+                    if (e > latestEnd) latestEnd = e
+                }
+
+                if (earliestStart == Int.MAX_VALUE) null
+                else TimedClass(
+                    className = cls.optString("className", ""),
+                    teacherName = cls.optString("teacherName", ""),
+                    locationName = cls.optString("locationName", ""),
+                    startMinute = earliestStart,
+                    endMinute = latestEnd
+                )
+            }.sortedBy { it.startMinute }
+
+            if (timedClasses.isEmpty()) {
+                hideAllFields(views)
+                views.setTextViewText(R.id.class_name_text, "今日无课")
+                return
+            }
+
+            val nowMinute = calendar.get(Calendar.HOUR_OF_DAY) * 60 +
+                    calendar.get(Calendar.MINUTE)
+
+            var currentClass: TimedClass? = null
+            var nextClass: TimedClass? = null
+
+            for (tc in timedClasses) {
+                if (nowMinute >= tc.startMinute && nowMinute < tc.endMinute) {
+                    currentClass = tc
+                } else if (nowMinute < tc.startMinute && nextClass == null) {
+                    nextClass = tc
+                }
+            }
+
+            val target = currentClass ?: nextClass
+            if (target != null) {
+                val label = if (currentClass != null) "进行中" else "接下来"
+                val timeRange = if (currentClass != null) {
+                    "进行中 - ${formatTime(target.endMinute)}"
+                } else {
+                    "${formatTime(target.startMinute)} - ${formatTime(target.endMinute)}"
+                }
+
+                views.setInt(R.id.label_text, "setVisibility", 0x00000000)
+                views.setTextViewText(R.id.label_text, label)
+                views.setInt(R.id.time_text, "setVisibility", 0x00000000)
+                views.setInt(R.id.location_text, "setVisibility", 0x00000000)
+                views.setInt(R.id.teacher_text, "setVisibility", 0x00000000)
+                views.setTextViewText(R.id.class_name_text, target.className)
+                views.setTextViewText(R.id.time_text, timeRange)
+                views.setTextViewText(R.id.location_text, target.locationName)
+                views.setTextViewText(R.id.teacher_text, target.teacherName)
+            } else {
+                hideAllFields(views)
+                views.setTextViewText(R.id.class_name_text, "今日课毕")
+            }
         }
 
         private fun attachClickIntent(context: Context, views: RemoteViews) {
@@ -331,10 +428,12 @@ class UpcomingClassWidget : AppWidgetProvider() {
 
     override fun onEnabled(context: Context) {
         scheduleAutoRefresh(context)
+        scheduleWorkManagerRefresh(context)
     }
 
     override fun onDisabled(context: Context) {
         cancelAutoRefresh(context)
+        WidgetRefreshWorker.cancel(context)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().clear().apply()
     }

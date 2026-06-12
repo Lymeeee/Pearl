@@ -119,9 +119,21 @@ struct Provider: TimelineProvider {
         }
 
         let isSummerTerm = (data.termSeason ?? 1) >= 3
-        guard let todayWeekIndex = data.calendarDays?.first(where: {
+        let todayWeekIndex: Int
+        if let exact = data.calendarDays?.first(where: {
             $0.year == components.year && $0.month == components.month && $0.day == components.day
-        })?.weekIndex else {
+        })?.weekIndex {
+            todayWeekIndex = exact
+        } else if isSummerTerm {
+            todayWeekIndex = 1
+        } else if let estimated = estimateWeekIndex(from: data.calendarDays,
+                                                     year: components.year!,
+                                                     month: components.month!,
+                                                     day: components.day!,
+                                                     maxWeek: maxWeekIndex(from: allClasses,
+                                                                           calendarDays: data.calendarDays)) {
+            todayWeekIndex = estimated
+        } else {
             let lookupWeekday = isSummerTerm ? 1 : todayWeekday
             let entry = computeEntry(for: now, allClasses: allClasses,
                                      allPeriods: allPeriods, todayWeekday: lookupWeekday,
@@ -288,6 +300,48 @@ struct Provider: TimelineProvider {
     }
 
     // MARK: - Helpers
+
+    private func estimateWeekIndex(from calendarDays: [WidgetCalendarDay]?,
+                                    year: Int, month: Int, day: Int,
+                                    maxWeek: Int) -> Int? {
+        guard let calendarDays, !calendarDays.isEmpty else { return nil }
+
+        let today = Calendar.current.date(from: DateComponents(year: year, month: month, day: day))!
+        let calendar = Calendar.current
+
+        var baseWeek: Int?
+        var baseDate: Date?
+        var minDiff = Double.greatestFiniteMagnitude
+
+        for cd in calendarDays {
+            guard let cdDate = calendar.date(from: DateComponents(year: cd.year, month: cd.month, day: cd.day)) else { continue }
+            let diff = abs(today.timeIntervalSince(cdDate))
+            if diff < minDiff {
+                minDiff = diff
+                baseWeek = cd.weekIndex
+                baseDate = cdDate
+            }
+        }
+
+        guard let baseWeek, let baseDate else { return nil }
+        let daysDiff = Int(today.timeIntervalSince(baseDate) / 86400)
+        let weeksDiff = Int((Double(daysDiff) / 7.0).rounded())
+        return max(1, min(maxWeek, baseWeek + weeksDiff))
+    }
+
+    private func maxWeekIndex(from allClasses: [WidgetClassItem],
+                               calendarDays: [WidgetCalendarDay]?) -> Int {
+        var maxW = 0
+        for cls in allClasses {
+            if let w = cls.weeks.max(), w > maxW { maxW = w }
+        }
+        if let days = calendarDays {
+            for cd in days {
+                if cd.weekIndex > maxW { maxW = cd.weekIndex }
+            }
+        }
+        return max(maxW, 1)
+    }
 
     private func computeDate(for item: WidgetClassItem, periods: [WidgetClassPeriod],
                              on today: Date, useEnd: Bool) -> Date? {

@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 import '/services/provider.dart';
 import '/types/courses.dart';
 import '/types/preferences.dart';
@@ -11,14 +12,45 @@ class ClassReminderService {
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
-  Timer? _timer;
-  String? _lastNotifiedKey;
+  Timer? _midnightTimer;
+  int _nextNotificationId = 0;
   bool _initialized = false;
 
-  bool get isRunning => _timer != null && _timer!.isActive;
+  bool get isRunning => _midnightTimer != null && _midnightTimer!.isActive;
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+
+    tz.initializeTimeZones();
+
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const darwinSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+
+    await _plugin.initialize(const InitializationSettings(
+      android: androidSettings,
+      iOS: darwinSettings,
+      macOS: darwinSettings,
+    ));
+    _initialized = true;
+
+    final prefs = ServiceProvider.instance.storeService
+        .getPref<AppSettings>('app_settings', AppSettings.fromJson);
+    if (prefs?.classReminderEnabled == true) {
+      start();
+    }
+  }
 
   Future<void> requestPermission() async {
     if (!_initialized) return;
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
     await _plugin
         .resolvePlatformSpecificImplementation<
             MacOSFlutterLocalNotificationsPlugin>()
@@ -37,120 +69,156 @@ class ClassReminderService {
         );
   }
 
-  Future<void> initialize() async {
-    if (_initialized) return;
-
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const darwinSettings = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
-    const linuxSettings = LinuxInitializationSettings(
-      defaultActionName: '查看课程',
-    );
-
-    final initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: darwinSettings,
-      macOS: darwinSettings,
-      linux: linuxSettings,
-    );
-
-    await _plugin.initialize(initSettings);
-    _initialized = true;
-
-    // Start if the preference says so
-    final prefs = ServiceProvider.instance.storeService
-        .getPref<AppSettings>('app_settings', AppSettings.fromJson);
-    if (prefs?.classReminderEnabled == true) {
-      start();
-    }
-  }
-
   void start() {
     stop();
-    _lastNotifiedKey = null;
-    _timer = Timer.periodic(const Duration(seconds: 60), (_) => _checkAndNotify());
+    _scheduleAllNotifications();
+    _scheduleMidnightRefresh();
   }
 
   void stop() {
-    _timer?.cancel();
-    _timer = null;
+    _midnightTimer?.cancel();
+    _midnightTimer = null;
+    _plugin.cancelAll();
   }
 
-  void _checkAndNotify() {
-    final data = ServiceProvider.instance.storeService
-        .getConfig<CurriculumIntegratedData>(
-          'curriculum_data',
-          CurriculumIntegratedData.fromJson,
-        );
+  void _scheduleMidnightRefresh() {
+    final now = DateTime.now();
+    final midnight =
+        DateTime(now.year, now.month, now.day + 1, 0, 1, 0);
+    _midnightTimer = Timer(midnight.difference(now), () {
+      _scheduleAllNotifications();
+      _scheduleMidnightRefresh();
+    });
+  }
+
+  void _scheduleAllNotifications() async {
+    await _plugin.cancelAll();
+    _nextNotificationId = 0;
+
+    final store = ServiceProvider.instance.storeService;
+    final data = store.getConfig<CurriculumIntegratedData>(
+      'curriculum_data',
+      CurriculumIntegratedData.fromJson,
+    );
     if (data == null) return;
 
-    final upcoming = data.getClassUpcoming();
-    if (upcoming == null) return;
+    // Merge custom courses
+    final customKey =
+        'custom_courses_${data.currentTerm.year}_${data.currentTerm.season}';
+    final customData = store.getPref<CustomCoursesList>(
+      customKey,
+      CustomCoursesList.fromJson,
+    );
+    final customCourses = customData?.courses ?? [];
 
-    final startTime = upcoming.getMinStartTime(data.allPeriods);
-    if (startTime == null) return;
+    final allClasses = [...data.allClasses, ...customCourses];
 
-    final now = TimeOfDay.fromDateTime(DateTime.now());
-    final minutesUntil = _minutesBetween(now, startTime);
+    // Schedule notifications for today and tomorrow
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    for (int dayOffset = 0; dayOffset < 2; dayOffset++) {
+      final targetDate = today.add(Duration(days: dayOffset));
+      final weekIndex = _getWeekIndexForDate(data, targetDate);
+      if (weekIndex == null) continue;
 
-    // Fire when 24-26 minutes before class (check every 60s, so 1-minute window)
-    if (minutesUntil < 24 || minutesUntil > 26) return;
+      final weekday = data.currentTerm.season >= 3 &&
+              (data.calendarDays == null || data.calendarDays!.isEmpty)
+          ? 1
+          : targetDate.weekday;
 
-    // Prevent duplicate notifications
-    final key = '${upcoming.day}-${upcoming.period}-${upcoming.className}';
-    if (key == _lastNotifiedKey) return;
-    _lastNotifiedKey = key;
+      for (final cls in allClasses) {
+        if (cls.day != weekday) continue;
+        if (!cls.weeks.contains(weekIndex)) continue;
 
-    _showNotification(upcoming, startTime);
+        final startTime = cls.getMinStartTime(data.allPeriods);
+        if (startTime == null) continue;
+
+        final classDateTime = DateTime(
+          targetDate.year,
+          targetDate.month,
+          targetDate.day,
+          startTime.hour,
+          startTime.minute,
+        );
+
+        final notifyTime = classDateTime.subtract(const Duration(minutes: 25));
+        if (notifyTime.isBefore(now)) continue;
+
+        final timeStr =
+            '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}';
+
+        await _plugin.zonedSchedule(
+          _nextNotificationId++,
+          '距离下节课还有25分钟',
+          '${cls.className}  $timeStr  ${cls.locationName}',
+          tz.TZDateTime.from(notifyTime, tz.local),
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'class_reminder',
+              '课程提醒',
+              channelDescription: '课前25分钟提醒',
+              importance: Importance.high,
+              priority: Priority.high,
+              showWhen: true,
+            ),
+            iOS: DarwinNotificationDetails(
+              presentAlert: true,
+              presentBadge: false,
+              presentSound: true,
+            ),
+            macOS: DarwinNotificationDetails(
+              presentAlert: true,
+              presentBadge: false,
+              presentSound: true,
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
+    }
   }
 
-  int _minutesBetween(TimeOfDay from, TimeOfDay to) {
-    return (to.hour * 60 + to.minute) - (from.hour * 60 + from.minute);
-  }
+  int? _getWeekIndexForDate(CurriculumIntegratedData data, DateTime date) {
+    // First try exact match from calendarDays
+    if (data.calendarDays != null) {
+      for (final cd in data.calendarDays!) {
+        if (cd.year == date.year &&
+            cd.month == date.month &&
+            cd.day == date.day) {
+          return cd.weekIndex;
+        }
+      }
+    }
 
-  Future<void> _showNotification(
-      ClassItem course, TimeOfDay startTime) async {
-    final timeStr =
-        '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}';
-    final title = '距离下节课还有25分钟';
-    final body = '${course.className}  $timeStr  ${course.locationName}';
+    // Summer term: every day is week 1
+    if (data.currentTerm.season >= 3) return 1;
 
-    final androidDetails = const AndroidNotificationDetails(
-      'class_reminder',
-      '课程提醒',
-      channelDescription: '课前25分钟提醒',
-      importance: Importance.high,
-      priority: Priority.high,
-      showWhen: true,
-    );
+    if (data.calendarDays == null || data.calendarDays!.isEmpty) return null;
 
-    final platformDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: const DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: false,
-        presentSound: true,
-      ),
-      macOS: const DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: false,
-        presentSound: true,
-      ),
-      linux: const LinuxNotificationDetails(
-        urgency: LinuxNotificationUrgency.normal,
-      ),
-    );
+    // Extrapolate: find the closest calendar day and compute weeks from it
+    int? baseWeek;
+    DateTime? baseDate;
+    int minDiff = 999999;
 
-    await _plugin.show(
-      course.className.hashCode, // unique ID per class
-      title,
-      body,
-      platformDetails,
-    );
+    for (final cd in data.calendarDays!) {
+      final cdDate = DateTime(cd.year, cd.month, cd.day);
+      final diff = date.difference(cdDate).inDays.abs();
+      if (diff < minDiff) {
+        minDiff = diff;
+        baseWeek = cd.weekIndex;
+        baseDate = cdDate;
+      }
+    }
+
+    if (baseWeek == null || baseDate == null) return null;
+
+    final daysDiff = date.difference(baseDate).inDays;
+    final weeksDiff = (daysDiff / 7).round();
+    final estimated = baseWeek + weeksDiff;
+    final maxWeek = data.getMaxValidWeekIndex();
+    return estimated.clamp(1, maxWeek);
   }
 
   void dispose() {
