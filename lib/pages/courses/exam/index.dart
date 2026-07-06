@@ -417,7 +417,7 @@ class _ExamPageState extends State<ExamPage> {
       child: Text(
         text,
         style: const TextStyle(fontWeight: FontWeight.bold),
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
         maxLines: 2,
       ),
     );
@@ -428,7 +428,7 @@ class _ExamPageState extends State<ExamPage> {
     return Container(
       width: width,
       child: Align(
-        alignment: Alignment.center,
+        alignment: Alignment.centerLeft,
         child: child,
       ),
     );
@@ -436,14 +436,13 @@ class _ExamPageState extends State<ExamPage> {
 
   Widget _buildClassNameCell(ExamInfo exam) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           exam.courseName,
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,
           maxLines: 2,
         ),
@@ -479,14 +478,13 @@ class _ExamPageState extends State<ExamPage> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           exam.examTime.split('-').first,
           style: const TextStyle(fontSize: 14),
-          textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,
           maxLines: 2,
         ),
@@ -497,7 +495,6 @@ class _ExamPageState extends State<ExamPage> {
               fontSize: 12,
               color: Theme.of(context).colorScheme.primary,
             ),
-            textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
             maxLines: 2,
           ),

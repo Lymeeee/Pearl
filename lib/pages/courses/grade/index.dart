@@ -563,7 +563,7 @@ class _GradePageState extends State<GradePage> {
       child: Text(
         text,
         style: const TextStyle(fontWeight: FontWeight.bold),
-        textAlign: TextAlign.center,
+        textAlign: isNumeric ? TextAlign.center : TextAlign.left,
         maxLines: 2,
       ),
     );
@@ -574,7 +574,7 @@ class _GradePageState extends State<GradePage> {
       width: width,
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Align(
-        alignment: Alignment.center,
+        alignment: isNumeric ? Alignment.center : Alignment.centerLeft,
         child: child,
       ),
     );
