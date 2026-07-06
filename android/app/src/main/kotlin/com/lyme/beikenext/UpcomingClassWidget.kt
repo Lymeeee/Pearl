@@ -384,12 +384,22 @@ class UpcomingClassWidget : AppWidgetProvider() {
                 views.setInt(R.id.label_text, "setVisibility", 0x00000000)
                 views.setTextViewText(R.id.label_text, label)
                 views.setInt(R.id.time_text, "setVisibility", 0x00000000)
-                views.setInt(R.id.location_text, "setVisibility", 0x00000000)
-                views.setInt(R.id.teacher_text, "setVisibility", 0x00000000)
                 views.setTextViewText(R.id.class_name_text, target.className)
                 views.setTextViewText(R.id.time_text, timeRange)
-                views.setTextViewText(R.id.location_text, target.locationName)
-                views.setTextViewText(R.id.teacher_text, target.teacherName)
+
+                if (target.locationName.isNotEmpty()) {
+                    views.setInt(R.id.location_text, "setVisibility", 0x00000000)
+                    views.setTextViewText(R.id.location_text, target.locationName)
+                } else {
+                    views.setInt(R.id.location_text, "setVisibility", 0x00000008)
+                }
+
+                if (target.teacherName.isNotEmpty()) {
+                    views.setInt(R.id.teacher_text, "setVisibility", 0x00000000)
+                    views.setTextViewText(R.id.teacher_text, target.teacherName)
+                } else {
+                    views.setInt(R.id.teacher_text, "setVisibility", 0x00000008)
+                }
             } else {
                 hideAllFields(views)
                 views.setTextViewText(R.id.class_name_text, "今日课毕")

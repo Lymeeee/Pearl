@@ -240,16 +240,8 @@ class _ExamPageState extends State<ExamPage> {
           ),
         ),
         const SizedBox(width: 8),
-        FilledButton.tonal(
-          style: ButtonStyle(
-            backgroundColor: WidgetStatePropertyAll(
-              Theme.of(context).colorScheme.primaryContainer,
-            ),
-            foregroundColor: WidgetStatePropertyAll(
-              Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          onPressed: !_isLoading ? _refreshExams : null,
+        _buildActionButton(
+          onTap: !_isLoading ? _refreshExams : null,
           child: _isLoading
               ? const SizedBox(
                   width: 18,
@@ -262,6 +254,29 @@ class _ExamPageState extends State<ExamPage> {
     );
   }
 
+  Widget _buildActionButton({
+    required Widget child,
+    VoidCallback? onTap,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primaryContainer,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: IconTheme(
+            data: IconThemeData(color: scheme.onPrimaryContainer, size: 18),
+            child: Center(child: child),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTable() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -270,10 +285,10 @@ class _ExamPageState extends State<ExamPage> {
           final availableWidth = constraints.maxWidth;
 
         final columnConfig = [
-          {'name': '课程名称', 'minWidth': 140.0, 'flex': 3, 'isNumeric': false},
-          {'name': '日期', 'minWidth': 100.0, 'flex': 3, 'isNumeric': false},
-          {'name': '时间', 'minWidth': 100.0, 'flex': 3, 'isNumeric': false},
-          {'name': '考场位置', 'minWidth': 140.0, 'flex': 4, 'isNumeric': false},
+          {'name': '课程名称', 'minWidth': 90.0, 'flex': 1, 'isNumeric': false},
+          {'name': '日期', 'minWidth': 72.0, 'flex': 1, 'isNumeric': false},
+          {'name': '时间', 'minWidth': 54.0, 'flex': 1, 'isNumeric': false},
+          {'name': '考场位置', 'minWidth': 84.0, 'flex': 1, 'isNumeric': false},
         ];
 
         final totalMinWidth = columnConfig.fold<double>(
@@ -322,16 +337,13 @@ class _ExamPageState extends State<ExamPage> {
                 child: Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
                         color: Theme.of(context)
                             .colorScheme
                             .primaryContainer,
-                        borderRadius: needsHorizontalScroll
-                            ? null
-                            : const BorderRadius.vertical(
-                                top: Radius.circular(16)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16)),
                       ),
                       child: Row(
                         children:
@@ -353,24 +365,20 @@ class _ExamPageState extends State<ExamPage> {
                       return Column(
                         children: [
                           if (i > 0)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16),
-                              child: Divider(
-                                  height: 1, color: dividerColor),
-                            ),
+                            Divider(
+                                height: 1, color: dividerColor),
                           InkWell(
                             onTap: () => _showExamDetail(exam),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
+                                  horizontal: 10, vertical: 12),
                               decoration: BoxDecoration(
                                 color: i.isEven
                                     ? null
                                     : Theme.of(context)
                                         .colorScheme
                                         .surfaceContainerLowest,
-                                borderRadius: isLast && !needsHorizontalScroll
+                                borderRadius: isLast
                                     ? const BorderRadius.vertical(
                                         bottom: Radius.circular(16))
                                     : null,
@@ -409,7 +417,7 @@ class _ExamPageState extends State<ExamPage> {
       child: Text(
         text,
         style: const TextStyle(fontWeight: FontWeight.bold),
-        textAlign: isNumeric ? TextAlign.center : TextAlign.left,
+        textAlign: TextAlign.center,
         maxLines: 2,
       ),
     );
@@ -420,7 +428,7 @@ class _ExamPageState extends State<ExamPage> {
     return Container(
       width: width,
       child: Align(
-        alignment: isNumeric ? Alignment.center : Alignment.centerLeft,
+        alignment: Alignment.center,
         child: child,
       ),
     );
@@ -438,42 +446,16 @@ class _ExamPageState extends State<ExamPage> {
           overflow: TextOverflow.ellipsis,
           maxLines: 2,
         ),
-        if (exam.courseNameAlt != null &&
-            exam.courseNameAlt!.isNotEmpty &&
-            exam.courseNameAlt != exam.courseName)
-          Text(
-            exam.courseNameAlt!,
-            style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
       ],
     );
   }
 
   Widget _buildExamDateCell(ExamInfo exam) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          exam.examDateDisplay,
-          style: const TextStyle(fontSize: 14),
-          overflow: TextOverflow.ellipsis,
-          maxLines: 2,
-        ),
-        Text(
-          "第${exam.examWeek}周 ${exam.examDayName}",
-          style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
-          overflow: TextOverflow.ellipsis,
-          maxLines: 2,
-        ),
-      ],
+    return Text(
+      '${exam.examDateDisplay}\n${exam.examDayName}',
+      style: const TextStyle(fontSize: 14),
+      overflow: TextOverflow.ellipsis,
+      maxLines: 2,
     );
   }
 
@@ -501,7 +483,7 @@ class _ExamPageState extends State<ExamPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          exam.examTime,
+          exam.examTime.split('-').first,
           style: const TextStyle(fontSize: 14),
           overflow: TextOverflow.ellipsis,
           maxLines: 2,
@@ -521,29 +503,11 @@ class _ExamPageState extends State<ExamPage> {
   }
 
   Widget _buildExamRoomCell(ExamInfo exam) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          exam.examRoom,
-          style: const TextStyle(fontSize: 14),
-          overflow: TextOverflow.ellipsis,
-          maxLines: 2,
-        ),
-        if (exam.examBuilding != null &&
-            exam.examBuilding!.isNotEmpty &&
-            exam.examBuilding != exam.examRoom)
-          Text(
-            exam.examBuilding!,
-            style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 2,
-          ),
-      ],
+    return Text(
+      exam.examRoom,
+      style: const TextStyle(fontSize: 14),
+      overflow: TextOverflow.ellipsis,
+      maxLines: 2,
     );
   }
 }

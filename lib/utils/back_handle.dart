@@ -26,21 +26,23 @@ class _DoubleBackToExitWrapperState extends State<DoubleBackToExitWrapper> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false,
+      canPop: true,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
-        if (didPop) return;
+        if (!didPop) return;
 
         final now = DateTime.now();
         if (_lastPressedAt == null ||
             now.difference(_lastPressedAt!) > widget.interval) {
           _lastPressedAt = now;
-          ScaffoldMessenger.of(context).clearSnackBars();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(widget.snackBarMessage),
-              duration: widget.interval,
-            ),
-          );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(widget.snackBarMessage),
+                duration: widget.interval,
+              ),
+            );
+          }
           return;
         }
 

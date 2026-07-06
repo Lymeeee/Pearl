@@ -534,7 +534,8 @@ class _HomePageState extends State<HomePage>
             const SizedBox(height: 2),
             if (periodTimeRange != null)
               Text('  $periodTimeRange', style: textStyle3),
-            Text(classItem.locationName, style: textStyle3),
+            if (classItem.locationName.isNotEmpty)
+              Text(classItem.locationName, style: textStyle3),
           ],
         ),
       ),

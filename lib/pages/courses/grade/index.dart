@@ -317,16 +317,8 @@ class _GradePageState extends State<GradePage> {
           ),
         ),
         const SizedBox(width: 8),
-        FilledButton.tonal(
-          style: ButtonStyle(
-            backgroundColor: WidgetStatePropertyAll(
-              Theme.of(context).colorScheme.primaryContainer,
-            ),
-            foregroundColor: WidgetStatePropertyAll(
-              Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          onPressed: !_isLoading ? _refreshGrades : null,
+        _buildActionButton(
+          onTap: !_isLoading ? _refreshGrades : null,
           child: _isLoading
               ? const SizedBox(
                   width: 18,
@@ -336,32 +328,39 @@ class _GradePageState extends State<GradePage> {
               : const Icon(Icons.refresh, size: 18),
         ),
         const SizedBox(width: 8),
-        FilledButton.tonal(
-          style: ButtonStyle(
-            backgroundColor: WidgetStatePropertyAll(
-              Theme.of(context).colorScheme.primaryContainer,
-            ),
-            foregroundColor: WidgetStatePropertyAll(
-              Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          onPressed: _showQuickCalculation,
+        _buildActionButton(
+          onTap: _showQuickCalculation,
           child: const Icon(Icons.calculate, size: 18),
         ),
         const SizedBox(width: 8),
-        FilledButton.tonal(
-          style: ButtonStyle(
-            backgroundColor: WidgetStatePropertyAll(
-              Theme.of(context).colorScheme.primaryContainer,
-            ),
-            foregroundColor: WidgetStatePropertyAll(
-              Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          onPressed: _showOverview,
+        _buildActionButton(
+          onTap: _showOverview,
           child: const Icon(Icons.analytics, size: 18),
         ),
       ],
+    );
+  }
+
+  Widget _buildActionButton({
+    required Widget child,
+    VoidCallback? onTap,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primaryContainer,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: IconTheme(
+            data: IconThemeData(color: scheme.onPrimaryContainer, size: 18),
+            child: Center(child: child),
+          ),
+        ),
+      ),
     );
   }
 
@@ -380,10 +379,10 @@ class _GradePageState extends State<GradePage> {
           final availableWidth = constraints.maxWidth;
 
         final columnConfig = [
-          {'name': '', 'minWidth': 50.0, 'flex': 0, 'isNumeric': false},
-          {'name': '课程名称', 'minWidth': 160.0, 'flex': 5, 'isNumeric': false},
-          {'name': '学分', 'minWidth': 60.0, 'flex': 1, 'isNumeric': true},
-          {'name': '成绩', 'minWidth': 60.0, 'flex': 1, 'isNumeric': true},
+          {'name': '', 'minWidth': 38.0, 'flex': 0, 'isNumeric': false},
+          {'name': '课程名称', 'minWidth': 100.0, 'flex': 1, 'isNumeric': false},
+          {'name': '学分', 'minWidth': 40.0, 'flex': 1, 'isNumeric': true},
+          {'name': '成绩', 'minWidth': 52.0, 'flex': 1, 'isNumeric': true},
         ];
 
         final totalMinWidth = columnConfig.fold<double>(
@@ -407,13 +406,18 @@ class _GradePageState extends State<GradePage> {
           tableWidth = totalMinWidth;
         } else {
           final extraWidth = availableWidth - totalMinWidth;
-          columnWidths = columnConfig.map((col) {
-            final minWidth = col['minWidth'] as double;
-            final flex = col['flex'] as int;
-            if (flex == 0) return minWidth;
-            final extraForThisColumn = extraWidth * (flex / totalFlex);
-            return minWidth + extraForThisColumn;
-          }).toList();
+          if (totalFlex > 0) {
+            columnWidths = columnConfig.map((col) {
+              final minWidth = col['minWidth'] as double;
+              final flex = col['flex'] as int;
+              if (flex == 0) return minWidth;
+              return minWidth + extraWidth * (flex / totalFlex);
+            }).toList();
+          } else {
+            columnWidths = columnConfig
+                .map((col) => col['minWidth'] as double)
+                .toList();
+          }
           tableWidth = availableWidth;
         }
 
@@ -433,16 +437,13 @@ class _GradePageState extends State<GradePage> {
                 child: Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                       decoration: BoxDecoration(
                         color: Theme.of(context)
                             .colorScheme
                             .primaryContainer,
-                        borderRadius: needsHorizontalScroll
-                            ? null
-                            : const BorderRadius.vertical(
-                                top: Radius.circular(16)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16)),
                       ),
                       child: Row(
                         children:
@@ -481,24 +482,19 @@ class _GradePageState extends State<GradePage> {
                       return Column(
                         children: [
                           if (i > 0)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16),
-                              child: Divider(
-                                  height: 1, color: dividerColor),
-                            ),
+                            Divider(height: 1, color: dividerColor),
                           InkWell(
                             onTap: () => _showGradeDetail(grade),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
+                                  horizontal: 10, vertical: 12),
                               decoration: BoxDecoration(
                                 color: i.isEven
                                     ? null
                                     : Theme.of(context)
                                         .colorScheme
                                         .surfaceContainerLowest,
-                                borderRadius: isLast && !needsHorizontalScroll
+                                borderRadius: isLast
                                     ? const BorderRadius.vertical(
                                         bottom: Radius.circular(16))
                                     : null,
@@ -536,7 +532,10 @@ class _GradePageState extends State<GradePage> {
       ),
       _buildDataCell(_buildCourseNameCell(grade), columnWidths[1]),
       _buildDataCell(
-        Text(grade.credit.toStringAsFixed(1)),
+        Text(
+          grade.credit.toStringAsFixed(1),
+          overflow: TextOverflow.ellipsis,
+        ),
         columnWidths[2],
         isNumeric: true,
       ),
@@ -549,6 +548,7 @@ class _GradePageState extends State<GradePage> {
                 ? Theme.of(context).colorScheme.primary
                 : Theme.of(context).colorScheme.error,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
         columnWidths[3],
         isNumeric: true,
@@ -563,7 +563,7 @@ class _GradePageState extends State<GradePage> {
       child: Text(
         text,
         style: const TextStyle(fontWeight: FontWeight.bold),
-        textAlign: isNumeric ? TextAlign.center : TextAlign.left,
+        textAlign: TextAlign.center,
         maxLines: 2,
       ),
     );
@@ -581,27 +581,11 @@ class _GradePageState extends State<GradePage> {
   }
 
   Widget _buildCourseNameCell(CourseGradeItem grade) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          grade.courseName,
-          style: const TextStyle(fontSize: 14),
-          overflow: TextOverflow.ellipsis,
-          maxLines: 2,
-        ),
-        if (grade.courseNameAlt != null && grade.courseNameAlt!.isNotEmpty)
-          Text(
-            grade.courseNameAlt!,
-            style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
-      ],
+    return Text(
+      grade.courseName,
+      style: const TextStyle(fontSize: 14),
+      overflow: TextOverflow.ellipsis,
+      maxLines: 2,
     );
   }
 }

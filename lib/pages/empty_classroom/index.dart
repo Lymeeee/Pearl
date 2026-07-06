@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 import '/utils/page_mixins.dart';
+import '/utils/app_bar.dart';
 import '/services/empty_classroom/service.dart';
 import '/types/empty_classroom.dart';
 
@@ -80,11 +81,7 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('无课教室'),
-        backgroundColor: theme.colorScheme.primaryContainer,
-        foregroundColor: theme.colorScheme.onPrimaryContainer,
-      ),
+      appBar: const PageAppBar(title: '无课教室'),
       body: Column(
         children: [
           _buildHeader(theme),
@@ -99,26 +96,12 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${_service.selectedDate} 无课教室',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _currentTime,
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+      child: Text(
+        _currentTime,
+        style: TextStyle(
+          fontSize: 14,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -315,7 +298,7 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     return RefreshIndicator(
       onRefresh: () => _service.refresh(),
       child: ListView.builder(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         itemCount: rooms.length,
         itemBuilder: (context, index) {
           final node = rooms[index];
@@ -455,7 +438,7 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     return RefreshIndicator(
       onRefresh: () => _service.refresh(),
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Wrap(
           spacing: 8,
           runSpacing: 8,

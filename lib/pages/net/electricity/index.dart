@@ -150,9 +150,13 @@ class _ElectricityPageState extends State<ElectricityPage>
                   child: TextField(
                     controller: _ammeterController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: '输入电表号',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
                       isDense: true,
                     ),
                     onSubmitted: (_) => _saveAndQuery(),
