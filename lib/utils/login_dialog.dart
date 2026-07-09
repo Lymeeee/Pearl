@@ -38,9 +38,13 @@ class LoginDialog extends StatelessWidget {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: Container(
+        clipBehavior: Clip.hardEdge,
         constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
             // Dialog header
             Container(

@@ -120,7 +120,6 @@ class _MainState extends State<Main> {
         color: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: colorScheme.primary, width: 1),
         ),
         clipBehavior: Clip.antiAlias,
       ),

@@ -316,24 +316,27 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
   ) {
     final isCurrent = _isCurrentTimeRange(node.startTime, node.endTime);
 
-    return Card(
-      elevation: isCurrent ? 3 : 0,
+    return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        side: isCurrent
-            ? BorderSide(color: theme.colorScheme.primary, width: 2)
-            : BorderSide(color: theme.colorScheme.outlineVariant),
+        border: Border.all(
+          color: isCurrent
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outlineVariant,
+          width: isCurrent ? 2 : 1,
+        ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Section header — uses primaryContainer for MD3 accent
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               decoration: BoxDecoration(
                 color: theme.colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
@@ -398,7 +401,7 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
 
     return Container(
       width: 100,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(10),
@@ -446,7 +449,7 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
           children: rooms.map((room) {
             return Container(
               width: 100,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: theme.colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(10),

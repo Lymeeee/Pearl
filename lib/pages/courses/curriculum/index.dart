@@ -243,26 +243,28 @@ class _CurriculumPageState extends State<CurriculumPage>
     return Scaffold(
       appBar: PageAppBar(
         title: '课表',
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton.tonalIcon(
-              onPressed: () {
-                Haptics.light();
-                _showSwitchTermDialog();
-              },
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('刷新课表'),
-              style: FilledButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+        actions: _curriculumData != null
+            ? [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      Haptics.light();
+                      _showSwitchTermDialog();
+                    },
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('刷新课表'),
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-        ],
+              ]
+            : null,
       ),
       body: SyncPowered(childBuilder: (context) => _buildBody()),
     );

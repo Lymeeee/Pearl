@@ -149,6 +149,7 @@ class _MainLayoutState extends State<MainLayout> {
     if (isOnTabRoot) {
       if (_activeTab != index) setState(() => _activeTab = index);
     } else {
+      _activeTab = index;
       context.router.replacePath(_bottomTabs[index].rootPath);
     }
   }
@@ -160,13 +161,6 @@ class _MainLayoutState extends State<MainLayout> {
 
     if (isTabRoot) {
       _lastUserTabIndex = _activeTab;
-    } else {
-      for (int i = _bottomTabs.length - 1; i >= 0; i--) {
-        if (_bottomTabs[i].pathPrefixes.any((p) => path.startsWith(p))) {
-          _lastUserTabIndex = i;
-          break;
-        }
-      }
     }
 
     final scaffold = Scaffold(

@@ -605,7 +605,7 @@ class _CourseListPageState extends State<CourseListPage>
                 const SizedBox(width: 12),
                 SizedBox(
                   height: 36,
-                  child: FilledButton.tonalIcon(
+                  child: FilledButton.icon(
                     onPressed: () {
                       Haptics.selection();
                       _showFilterDialog();

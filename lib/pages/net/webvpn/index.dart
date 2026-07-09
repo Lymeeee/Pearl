@@ -92,12 +92,6 @@ class _WebVpnPageState extends State<WebVpnPage> {
                       decoration: InputDecoration(
                         hintText: "输入后按回车转换（别忘了前面的https://呦）",
                         hintMaxLines: 2,
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-                        ),
                         errorText: _rawError,
                       ),
                       onSubmitted: _onRawSubmit,
@@ -105,7 +99,7 @@ class _WebVpnPageState extends State<WebVpnPage> {
                     const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: FilledButton.tonalIcon(
+                      child: FilledButton.icon(
                         onPressed: () {
                           Haptics.light();
                           if (_rawController.text.isNotEmpty) {
@@ -156,12 +150,6 @@ class _WebVpnPageState extends State<WebVpnPage> {
                       decoration: InputDecoration(
                         hintText: '输入WebVPN网址后按回车转换',
                         hintMaxLines: 2,
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-                        ),
                         errorText: _vpnError,
                       ),
                       onSubmitted: _onVpnSubmit,
@@ -169,7 +157,7 @@ class _WebVpnPageState extends State<WebVpnPage> {
                     const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: FilledButton.tonalIcon(
+                      child: FilledButton.icon(
                         onPressed: () {
                           Haptics.light();
                           if (_vpnController.text.isNotEmpty) {

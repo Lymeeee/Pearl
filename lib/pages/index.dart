@@ -269,11 +269,7 @@ class _HomePageState extends State<HomePage>
         final bool isNarrowScreen = constraints.maxWidth < 600;
         final theme = Theme.of(context);
 
-        return Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainer.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(16),
-          ),
+        return Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -921,11 +917,7 @@ class _HomePageState extends State<HomePage>
         final bool isNarrowScreen = constraints.maxWidth < 600;
         final theme = Theme.of(context);
 
-        return Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainer.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(16),
-          ),
+        return Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

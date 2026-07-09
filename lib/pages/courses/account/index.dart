@@ -353,7 +353,13 @@ class _AccountPageState extends State<AccountPage> {
           const SizedBox(height: 24),
           // Login methods section (only show when not logged in)
           if (_showLoginButton) ...[
-            Text('登录方式', style: Theme.of(context).textTheme.headlineSmall),
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Text(
+                '登录方式',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+            ),
             const SizedBox(height: 16),
             // Login methods list
             Card.filled(

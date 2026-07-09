@@ -409,7 +409,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '关闭电池优化以确保课程提醒正常送达',
+                    '关闭电池优化以确保桌面小组件正常刷新',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),

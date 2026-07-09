@@ -160,22 +160,9 @@ class _CookieLoginDialogState extends State<_CookieLoginDialog> {
             controller: _cookieController,
             maxLines: 4,
             minLines: 2,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: '请粘贴您的会话Cookie...\n例如：SESSION=xxxxxx; INCO=xxxxxx',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 2,
-                ),
-              ),
-              contentPadding: const EdgeInsets.all(16),
+              contentPadding: EdgeInsets.all(16),
             ),
           ),
 
