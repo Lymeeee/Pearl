@@ -47,7 +47,6 @@ const _bottomTabs = [
 ];
 
 int _lastUserTabIndex = 0;
-String _lastPath = '';
 
 class AppRouter {
   static final router = RootStackRouter.build(
@@ -134,6 +133,7 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _activeTab = 0;
+  bool _userSwitchedTab = false;
 
   static const _tabPages = <Widget>[
     HomePage(),
@@ -148,9 +148,11 @@ class _MainLayoutState extends State<MainLayout> {
     final isOnTabRoot = _bottomTabs.any((t) => t.rootPath == _path);
 
     if (isOnTabRoot) {
-      if (_activeTab != index) setState(() => _activeTab = index);
+      if (_activeTab != index) {
+        _userSwitchedTab = true;
+        setState(() => _activeTab = index);
+      }
     } else {
-      _activeTab = index;
       context.router.replacePath(_bottomTabs[index].rootPath);
     }
   }
@@ -158,16 +160,16 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     final path = _path;
-    final pathChanged = _lastPath != path;
-    _lastPath = path;
-
     final isTabRoot = _bottomTabs.any((t) => t.rootPath == path);
 
-    if (isTabRoot && pathChanged) {
-      final tabIndex = _bottomTabs.indexWhere((t) => t.rootPath == path);
-      _activeTab = tabIndex;
-      _lastUserTabIndex = tabIndex;
+    if (isTabRoot) {
+      if (!_userSwitchedTab) {
+        final tabIndex = _bottomTabs.indexWhere((t) => t.rootPath == path);
+        _activeTab = tabIndex;
+      }
+      _lastUserTabIndex = _activeTab;
     }
+    _userSwitchedTab = false;
 
     final scaffold = Scaffold(
       body: isTabRoot
@@ -181,7 +183,7 @@ class _MainLayoutState extends State<MainLayout> {
                       offset: isActive
                           ? Offset.zero
                           : Offset(_activeTab > i ? -1.0 : 1.0, 0.0),
-                      duration: const Duration(milliseconds: 250),
+                      duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOutCubic,
                       child: _tabPages[i],
                     ),

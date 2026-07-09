@@ -368,13 +368,23 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
             ),
             const SizedBox(height: 10),
             // Classroom grid
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              alignment: WrapAlignment.center,
-              children: node.classroomItems.map((room) {
-                return _buildRoomChip(theme, room, node);
-              }).toList(),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = 6.0;
+                const perRow = 3;
+                final chipWidth =
+                    (constraints.maxWidth - spacing * (perRow - 1)) / perRow;
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: node.classroomItems.map((room) {
+                    return SizedBox(
+                      width: chipWidth,
+                      child: _buildRoomChip(theme, room, node),
+                    );
+                  }).toList(),
+                );
+              },
             ),
           ],
         ),
@@ -401,7 +411,6 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     };
 
     return Container(
-      width: 100,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: bgColor,
