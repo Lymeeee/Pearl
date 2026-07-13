@@ -69,10 +69,6 @@ class _WebVpnPageState extends State<WebVpnPage> {
           children: [
             const SizedBox(height: 16),
             Card.filled(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
-              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -126,10 +122,6 @@ class _WebVpnPageState extends State<WebVpnPage> {
             ),
             const SizedBox(height: 16),
             Card.filled(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
-              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

@@ -139,63 +139,146 @@ class _NetMonthlyBillSectionState extends State<NetMonthlyBillSection> {
   }
 
   Widget _buildBillTable(ThemeData theme) {
-    return Center(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingTextStyle: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onSurface,
+    final columnConfig = [
+      {'name': '开始日期', 'width': 85.0, 'isNumeric': false},
+      {'name': '结束日期', 'width': 85.0, 'isNumeric': false},
+      {'name': '套餐类型', 'width': 80.0, 'isNumeric': false},
+      {'name': '基本月租', 'width': 80.0, 'isNumeric': true},
+      {'name': '时长/流量计费', 'width': 95.0, 'isNumeric': true},
+      {'name': '使用时长', 'width': 80.0, 'isNumeric': true},
+      {'name': '使用流量', 'width': 80.0, 'isNumeric': true},
+      {'name': '出账时间', 'width': 130.0, 'isNumeric': false},
+    ];
+
+    final dividerColor =
+        theme.colorScheme.outlineVariant.withValues(alpha: 0.4);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Column(
+        children: [
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
+              children: columnConfig.map((col) {
+                return _buildHeaderCell(
+                  col['name'] as String,
+                  col['width'] as double,
+                  isNumeric: col['isNumeric'] as bool,
+                );
+              }).toList(),
+            ),
           ),
-          columns: const [
-            DataColumn(label: Text('开始日期')),
-            DataColumn(label: Text('结束日期')),
-            DataColumn(label: Text('套餐类型')),
-            DataColumn(label: Text('基本月租')),
-            DataColumn(label: Text('时长/流量计费')),
-            DataColumn(label: Text('使用时长')),
-            DataColumn(label: Text('使用流量')),
-            DataColumn(label: Text('出账时间')),
-          ],
-          rows: widget.bills
-              .map(
-                (bill) => DataRow(
-                  cells: [
-                    DataCell(Text(_formatDate(bill.startDate))),
-                    DataCell(Text(_formatDate(bill.endDate))),
-                    DataCell(
-                      Text(bill.packageName.isEmpty ? '--' : bill.packageName),
-                    ),
-                    DataCell(
-                      Text(
-                        _formatCurrency(bill.monthlyFee),
-                        textAlign: TextAlign.right,
+          Divider(height: 1, color: dividerColor),
+          ...List.generate(widget.bills.length, (i) {
+            final bill = widget.bills[i];
+            final isLast = i == widget.bills.length - 1;
+            return Column(
+              children: [
+                if (i > 0) Divider(height: 1, color: dividerColor),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: i.isEven
+                        ? null
+                        : theme.colorScheme.surfaceContainerLowest,
+                    borderRadius: isLast
+                        ? const BorderRadius.vertical(
+                            bottom: Radius.circular(16))
+                        : null,
+                  ),
+                  child: Row(
+                    children: [
+                      _buildDataCell(
+                        Text(_formatDate(bill.startDate)),
+                        (columnConfig[0]['width'] as double),
                       ),
-                    ),
-                    DataCell(
-                      Text(
-                        _formatCurrency(bill.usageFee),
-                        textAlign: TextAlign.right,
+                      _buildDataCell(
+                        Text(_formatDate(bill.endDate)),
+                        (columnConfig[1]['width'] as double),
                       ),
-                    ),
-                    DataCell(
-                      Text(
-                        _formatDuration(bill.usageDurationMinutes),
-                        textAlign: TextAlign.right,
+                      _buildDataCell(
+                        Text(bill.packageName.isEmpty
+                            ? '--'
+                            : bill.packageName),
+                        (columnConfig[2]['width'] as double),
                       ),
-                    ),
-                    DataCell(
-                      Text(
-                        _formatDataSize(bill.usageFlowMb),
-                        textAlign: TextAlign.right,
+                      _buildDataCell(
+                        Text(
+                          _formatCurrency(bill.monthlyFee),
+                          textAlign: TextAlign.right,
+                        ),
+                        (columnConfig[3]['width'] as double),
+                        isNumeric: true,
                       ),
-                    ),
-                    DataCell(Text(_formatDateTime(bill.createTime))),
-                  ],
+                      _buildDataCell(
+                        Text(
+                          _formatCurrency(bill.usageFee),
+                          textAlign: TextAlign.right,
+                        ),
+                        (columnConfig[4]['width'] as double),
+                        isNumeric: true,
+                      ),
+                      _buildDataCell(
+                        Text(
+                          _formatDuration(bill.usageDurationMinutes),
+                          textAlign: TextAlign.right,
+                        ),
+                        (columnConfig[5]['width'] as double),
+                        isNumeric: true,
+                      ),
+                      _buildDataCell(
+                        Text(
+                          _formatDataSize(bill.usageFlowMb),
+                          textAlign: TextAlign.right,
+                        ),
+                        (columnConfig[6]['width'] as double),
+                        isNumeric: true,
+                      ),
+                      _buildDataCell(
+                        Text(_formatDateTime(bill.createTime)),
+                        (columnConfig[7]['width'] as double),
+                      ),
+                    ],
+                  ),
                 ),
-              )
-              .toList(),
-        ),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderCell(String text, double width,
+      {bool isNumeric = false}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+        textAlign: isNumeric ? TextAlign.right : TextAlign.left,
+        maxLines: 2,
+      ),
+    );
+  }
+
+  Widget _buildDataCell(Widget child, double width,
+      {bool isNumeric = false}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Align(
+        alignment: isNumeric ? Alignment.centerRight : Alignment.centerLeft,
+        child: child,
       ),
     );
   }

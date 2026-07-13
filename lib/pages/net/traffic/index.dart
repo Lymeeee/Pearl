@@ -560,11 +560,10 @@ class NetOnlineSessionSection extends StatelessWidget {
                 ),
               )
             else
-              ListView.separated(
+              ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: sessions.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final session = sessions[index];
                   return _buildOnlineSessionListTile(theme, context, session);

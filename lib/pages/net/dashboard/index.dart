@@ -489,7 +489,12 @@ class _NetDashboardPageState extends State<NetDashboardPage>
     NetUserInfo info, {
     required VoidCallback onLogout,
   }) {
-    return Card.filled(
+    return Card(
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -605,6 +610,23 @@ class _NetDashboardPageState extends State<NetDashboardPage>
                       children: [_buildFlowProgressBarContent(theme, info)],
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet,
+                            size: 18, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text('余额',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                        const SizedBox(width: 8),
+                        Text('¥${info.moneyLeft.toStringAsFixed(2)}',
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -613,12 +635,13 @@ class _NetDashboardPageState extends State<NetDashboardPage>
               builder: (context, constraints) {
                 final isNarrowScreen = constraints.maxWidth < 300;
                 final items = [
-                  (
-                    Icons.account_balance_wallet,
-                    '余额',
-                    '¥${info.moneyLeft.toStringAsFixed(2)}',
-                    null as VoidCallback?,
-                  ),
+                  if (info.plan != null)
+                    (
+                      Icons.wifi,
+                      '套餐',
+                      info.plan!.planName,
+                      _showPlanDialog as VoidCallback?,
+                    ),
                   (
                     Icons.security,
                     '限额',
@@ -627,13 +650,6 @@ class _NetDashboardPageState extends State<NetDashboardPage>
                         : '¥${info.maxConsume}',
                     _showChangeMaxConsumeDialog as VoidCallback?,
                   ),
-                  if (info.plan != null)
-                    (
-                      Icons.wifi,
-                      '套餐',
-                      info.plan!.planName,
-                      _showPlanDialog as VoidCallback?,
-                    ),
                   (
                     Icons.lock,
                     '密码',
@@ -747,7 +763,7 @@ class _NetDashboardPageState extends State<NetDashboardPage>
     final container = Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: theme.colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(8),
       ),
       child: content,
@@ -793,7 +809,7 @@ class _NetDashboardPageState extends State<NetDashboardPage>
         backgroundColor = theme.colorScheme.error;
         ratio = freeFlow / (flowUsed > 0 ? flowUsed : 1.0);
       } else {
-        backgroundColor = theme.colorScheme.primary;
+        backgroundColor = theme.colorScheme.secondaryContainer;
         ratio = flowUsed / (freeFlow > 0 ? freeFlow : 1.0);
       }
     } else {
@@ -883,7 +899,7 @@ class _NetDashboardPageState extends State<NetDashboardPage>
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
+                        color: theme.colorScheme.secondaryContainer,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -994,11 +1010,10 @@ class _NetDashboardPageState extends State<NetDashboardPage>
                 ),
               )
             else
-              ListView.separated(
+              ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _macDevices!.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final device = _macDevices![index];
                   return _buildMacListTile(theme, context, device);
