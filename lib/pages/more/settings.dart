@@ -62,6 +62,10 @@ class _SettingsPageState extends State<SettingsPage> {
           _buildHolidayToggle(),
           const SizedBox(height: 16),
           _buildHapticToggle(),
+          if (_isSummerTerm()) ...[
+            const SizedBox(height: 16),
+            _buildSummerTermStartDateCard(),
+          ],
           if (Platform.isAndroid) ...[
             const SizedBox(height: 16),
             _buildBatteryOptimizationTile(),
@@ -669,5 +673,124 @@ class _SettingsPageState extends State<SettingsPage> {
       case ThemeMode.light: return ThemeMode.dark;
       case ThemeMode.dark: return ThemeMode.system;
     }
+  }
+
+  bool _isSummerTerm() {
+    final curriculumData = _serviceProvider.storeService
+        .getConfig<CurriculumIntegratedData>(
+            'curriculum_data', CurriculumIntegratedData.fromJson);
+    return curriculumData != null && curriculumData.currentTerm.season >= 3;
+  }
+
+  String? _getSummerTermStartDate() {
+    final prefs = _serviceProvider.storeService
+        .getPref<AppSettings>('app_settings', AppSettings.fromJson);
+    return prefs?.summerTermStartDate;
+  }
+
+  void _setSummerTermStartDate(String? date) {
+    final existing = _serviceProvider.storeService
+        .getPref<AppSettings>('app_settings', AppSettings.fromJson);
+    final updated = AppSettings(
+      themeMode: existing?.themeMode ?? ThemeManager.currentThemeMode,
+      accentColorValue:
+          existing?.accentColorValue ?? ThemeManager.currentAccentColor?.toARGB32(),
+      holidayMode: existing?.holidayMode ?? false,
+      hapticFeedbackEnabled: existing?.hapticFeedbackEnabled ?? true,
+      examMode: existing?.examMode ?? false,
+      summerTermStartDate: date,
+    );
+    _serviceProvider.storeService.putPref<AppSettings>(
+        'app_settings', updated);
+    _serviceProvider.notifySettingsChanged();
+    setState(() {});
+  }
+
+  String _formatSummerTermStartDate(String? date) {
+    if (date == null) return '未设定';
+    final dt = DateTime.tryParse(date);
+    if (dt == null) return '未设定';
+    return '${dt.year}年${dt.month}月${dt.day}日';
+  }
+
+  Future<void> _showSummerTermDatePicker() async {
+    final initialDate = DateTime.now();
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: '选择小学期起始日期',
+      cancelText: '取消',
+      confirmText: '确定',
+    );
+
+    if (picked != null) {
+      final iso =
+          '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+      _setSummerTermStartDate(iso);
+      // Refresh cached curriculum and widget with new start date
+      _serviceProvider.getCurriculumData().then((data) {
+        if (data != null) {
+          data.summerTermStartDate = DateTime.tryParse(iso);
+          WidgetUpdater().updateFromCurriculum(data);
+        }
+      });
+      _serviceProvider.notifySettingsChanged();
+    }
+  }
+
+  Widget _buildSummerTermStartDateCard() {
+    final date = _getSummerTermStartDate();
+
+    return Card.filled(
+      shape: _noBorderShape,
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () {
+          Haptics.selection();
+          _showSummerTermDatePicker();
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_month,
+                  color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '小学期起始日',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatSummerTermStartDate(date),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                              color: date != null
+                                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                                  : Theme.of(context).colorScheme.error),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

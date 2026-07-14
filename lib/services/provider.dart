@@ -133,6 +133,13 @@ class ServiceProvider extends ChangeNotifier {
     );
 
     if (cachedData != null) {
+      if (cachedData.currentTerm.season >= 3 &&
+          cachedData.summerTermStartDate == null) {
+        cachedData.summerTermStartDate = _parseSummerDate(
+            storeService.getPref<AppSettings>(
+                    'app_settings', AppSettings.fromJson)
+                ?.summerTermStartDate);
+      }
       return cachedData;
     }
 
@@ -179,6 +186,11 @@ class ServiceProvider extends ChangeNotifier {
       allClasses: classes,
       allPeriods: periods,
       calendarDays: calendarDays.isEmpty ? null : calendarDays,
+      summerTermStartDate: termInfo.season >= 3
+          ? _parseSummerDate(storeService.getPref<AppSettings>(
+                  'app_settings', AppSettings.fromJson)
+              ?.summerTermStartDate)
+          : null,
     );
 
     // Cache the data
@@ -272,5 +284,10 @@ class ServiceProvider extends ChangeNotifier {
     _serviceListenerDisposers.add(() {
       service.removeListener(forward);
     });
+  }
+
+  DateTime? _parseSummerDate(String? iso) {
+    if (iso == null) return null;
+    return DateTime.tryParse(iso);
   }
 }

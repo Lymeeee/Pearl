@@ -44,8 +44,6 @@ extension ClassItemUstbByytExtension on ClassItem {
     try {
       final key = data['key'] as String?;
       final kbxx = data['kbxx'] as String?;
-      // final kbxxEn = data['kbxx_en'] as String?; // 当前暂不支持英文版解析
-
       if (key == null || kbxx == null || key == 'bz') {
         // 跳过非正常课程格式或不排课课程
         return null;

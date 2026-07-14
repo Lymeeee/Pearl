@@ -132,13 +132,19 @@ class CurriculumTable extends StatelessWidget {
     String? displayYear;
 
     final days = curriculumData.calendarDays;
-    if (days != null) {
+    if (days != null && days.isNotEmpty) {
       for (final calendarDay in days) {
         if (calendarDay.weekIndex == currentWeek) {
           displayMonth = '${calendarDay.month}月';
           displayYear = '${calendarDay.year}年';
         }
       }
+    } else if (curriculumData.currentTerm.season >= 3 &&
+        curriculumData.summerTermStartDate != null) {
+      final weekStart = curriculumData.summerTermStartDate!
+          .add(Duration(days: (currentWeek - 1) * 7));
+      displayMonth = '${weekStart.month}月';
+      displayYear = '${weekStart.year}年';
     }
 
     return Container(
@@ -549,28 +555,38 @@ class CurriculumTable extends StatelessWidget {
 
   /// Returns 1~7 for Monday~Sunday, or null if today is not in the current week
   int? _getTodayWeekday() {
-    if (curriculumData.calendarDays == null ||
-        curriculumData.calendarDays!.isEmpty) {
-      return null;
-    }
-
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    for (final calendarDay in curriculumData.calendarDays!) {
-      if (calendarDay.weekIndex == currentWeek) {
-        final dayDate = DateTime(
-          calendarDay.year,
-          calendarDay.month,
-          calendarDay.day,
-        );
-        if (dayDate.year == today.year &&
-            dayDate.month == today.month &&
-            dayDate.day == today.day) {
-          return calendarDay.weekday;
+    if (curriculumData.calendarDays != null &&
+        curriculumData.calendarDays!.isNotEmpty) {
+      for (final calendarDay in curriculumData.calendarDays!) {
+        if (calendarDay.weekIndex == currentWeek) {
+          final dayDate = DateTime(
+            calendarDay.year,
+            calendarDay.month,
+            calendarDay.day,
+          );
+          if (dayDate.year == today.year &&
+              dayDate.month == today.month &&
+              dayDate.day == today.day) {
+            return calendarDay.weekday;
+          }
         }
       }
+      return null;
     }
+
+    if (curriculumData.currentTerm.season >= 3 &&
+        curriculumData.summerTermStartDate != null) {
+      final weekStart = curriculumData.summerTermStartDate!
+          .add(Duration(days: (currentWeek - 1) * 7));
+      final weekEnd = weekStart.add(const Duration(days: 6));
+      if (!today.isBefore(weekStart) && !today.isAfter(weekEnd)) {
+        return today.weekday;
+      }
+    }
+
     return null;
   }
 }

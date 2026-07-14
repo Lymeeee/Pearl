@@ -43,6 +43,9 @@ struct WidgetCurriculumData: Codable {
     let allPeriods: [WidgetClassPeriod]?
     let calendarDays: [WidgetCalendarDay]?
     let termSeason: Int?
+    let summerTermStartYear: Int?
+    let summerTermStartMonth: Int?
+    let summerTermStartDay: Int?
     let holidayMode: Bool?
 }
 
@@ -118,6 +121,14 @@ struct Provider: TimelineProvider {
                 className: "数据不完整", timeRange: "请打开App刷新", location: "", teacher: "")]
         }
 
+        if (data.termSeason ?? 1) >= 3
+            && data.summerTermStartMonth == nil
+            || data.summerTermStartDay == nil {
+            return [ClassEntry(date: now, hasClass: false,
+                className: "未设定小学期起始日",
+                timeRange: "请打开App在设置中设定", location: "", teacher: "")]
+        }
+
         let isSummerTerm = (data.termSeason ?? 1) >= 3
         let todayWeekIndex: Int
         if let exact = data.calendarDays?.first(where: {
@@ -125,7 +136,10 @@ struct Provider: TimelineProvider {
         })?.weekIndex {
             todayWeekIndex = exact
         } else if isSummerTerm {
-            todayWeekIndex = 1
+            todayWeekIndex = computeSummerWeekIndex(
+                year: data.summerTermStartYear ?? Calendar.current.component(.year, from: Date()),
+                month: data.summerTermStartMonth!,
+                day: data.summerTermStartDay!)
         } else if let estimated = estimateWeekIndex(from: data.calendarDays,
                                                      year: components.year!,
                                                      month: components.month!,
@@ -134,14 +148,13 @@ struct Provider: TimelineProvider {
                                                                            calendarDays: data.calendarDays)) {
             todayWeekIndex = estimated
         } else {
-            let lookupWeekday = isSummerTerm ? 1 : todayWeekday
             let entry = computeEntry(for: now, allClasses: allClasses,
-                                     allPeriods: allPeriods, todayWeekday: lookupWeekday,
+                                     allPeriods: allPeriods, todayWeekday: todayWeekday,
                                      todayWeekIndex: 1)
             return [entry]
         }
 
-        let lookupWeekday = isSummerTerm ? 1 : todayWeekday
+        let lookupWeekday = todayWeekday
         let todayClasses = allClasses.filter {
             $0.day == lookupWeekday && $0.weeks.contains(todayWeekIndex)
         }
@@ -300,6 +313,17 @@ struct Provider: TimelineProvider {
     }
 
     // MARK: - Helpers
+
+    private func computeSummerWeekIndex(year: Int, month: Int, day: Int) -> Int {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let startDate = calendar.date(from: DateComponents(year: year, month: month, day: day)) else {
+            return 1
+        }
+        let diffDays = calendar.dateComponents([.day], from: startDate, to: now).day ?? 0
+        if diffDays < 0 { return 1 }
+        return (diffDays / 7) + 1
+    }
 
     private func estimateWeekIndex(from calendarDays: [WidgetCalendarDay]?,
                                     year: Int, month: Int, day: Int,

@@ -16,6 +16,15 @@ class WidgetUpdater {
     if (data != null) {
       payload.addAll(data.toJson());
       payload['termSeason'] = data.currentTerm.season;
+
+      // Pass summer term start date from settings
+      if (data.currentTerm.season >= 3 && data.summerTermStartDate != null) {
+        final start = data.summerTermStartDate!;
+        payload['summerTermStartYear'] = start.year;
+        payload['summerTermStartMonth'] = start.month;
+        payload['summerTermStartDay'] = start.day;
+      }
+
       if (customCourses != null && customCourses.isNotEmpty) {
         final allClasses = List<Map<String, dynamic>>.from(payload['allClasses']);
         for (final cc in customCourses) {

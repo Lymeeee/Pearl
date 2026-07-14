@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -14,7 +15,10 @@
         android:layout_height="wrap_content"
         android:textColor="@color/widget_text_secondary"
         android:textSize="11sp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        app:autoSizeTextType="uniform"
+        app:autoSizeMinTextSize="7sp"
+        app:autoSizeMaxTextSize="11sp" />
 
     <TextView
         android:id="@+id/class_name_text"
@@ -25,7 +29,10 @@
         android:maxLines="2"
         android:textColor="@color/widget_text_primary"
         android:textSize="15sp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        app:autoSizeTextType="uniform"
+        app:autoSizeMinTextSize="9sp"
+        app:autoSizeMaxTextSize="15sp" />
 
     <TextView
         android:id="@+id/time_text"
@@ -33,7 +40,10 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="3dp"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        app:autoSizeTextType="uniform"
+        app:autoSizeMinTextSize="8sp"
+        app:autoSizeMaxTextSize="12sp" />
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -49,7 +59,10 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/widget_text_tertiary"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            app:autoSizeTextType="uniform"
+            app:autoSizeMinTextSize="7sp"
+            app:autoSizeMaxTextSize="11sp" />
 
         <TextView
             android:id="@+id/teacher_text"
@@ -58,7 +71,10 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/widget_text_tertiary"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            app:autoSizeTextType="uniform"
+            app:autoSizeMinTextSize="7sp"
+            app:autoSizeMaxTextSize="11sp" />
     </LinearLayout>
 
     <TextView

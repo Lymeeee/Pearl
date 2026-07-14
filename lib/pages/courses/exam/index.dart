@@ -347,7 +347,6 @@ class _ExamPageState extends State<ExamPage> {
                           return _buildHeaderCell(
                             column['name'] as String,
                             columnWidths[index],
-                            isNumeric: column['isNumeric'] as bool,
                           );
                         }).toList(),
                       ),
@@ -408,7 +407,7 @@ class _ExamPageState extends State<ExamPage> {
     ];
   }
 
-  Widget _buildHeaderCell(String text, double width, {bool isNumeric = false}) {
+  Widget _buildHeaderCell(String text, double width) {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -421,8 +420,7 @@ class _ExamPageState extends State<ExamPage> {
     );
   }
 
-  Widget _buildDataCell(Widget child, double width,
-      {bool isNumeric = false}) {
+  Widget _buildDataCell(Widget child, double width) {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(vertical: 4.0),

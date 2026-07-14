@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
+import android.os.Bundle
 import android.os.SystemClock
 import android.widget.RemoteViews
 import org.json.JSONArray
@@ -120,10 +121,7 @@ class UpcomingClassWidget : AppWidgetProvider() {
                 }
             }
 
-            // 2. Summer term fallback
-            if (termSeason >= 3) return 1
-
-            // 3. Extrapolate from nearest calendar day
+            // 2. Extrapolate from nearest calendar day
             if (calendarDays == null || calendarDays.length() == 0) return null
 
             val today = Calendar.getInstance().apply {
@@ -181,6 +179,16 @@ class UpcomingClassWidget : AppWidgetProvider() {
 
         private fun convertToMondayBased(javaDayOfWeek: Int): Int {
             return if (javaDayOfWeek == Calendar.SUNDAY) 7 else javaDayOfWeek - 1
+        }
+
+        private fun computeSummerWeekIndex(startYear: Int, startMonth: Int, startDay: Int): Int {
+            val start = Calendar.getInstance().apply {
+                set(startYear, startMonth - 1, startDay, 0, 0, 0)
+            }
+            val now = Calendar.getInstance()
+            val diffDays = ((now.timeInMillis - start.timeInMillis) / (24 * 60 * 60 * 1000)).toInt()
+            if (diffDays < 0) return 1
+            return (diffDays / 7) + 1
         }
 
         private fun buildRemoteViews(context: Context): RemoteViews {
@@ -241,6 +249,17 @@ class UpcomingClassWidget : AppWidgetProvider() {
                 val todayWeekday = convertToMondayBased(calendar.get(Calendar.DAY_OF_WEEK))
                 val termSeason = data.optInt("termSeason", 1)
                 val isSummerTerm = termSeason >= 3
+                val summerStartYear = data.optInt("summerTermStartYear", -1)
+                val summerStartMonth = data.optInt("summerTermStartMonth", -1)
+                val summerStartDay = data.optInt("summerTermStartDay", -1)
+
+                // Summer term without start date configured
+                if (isSummerTerm && (summerStartYear < 0 || summerStartMonth < 0 || summerStartDay < 0)) {
+                    hideAllFields(views)
+                    views.setTextViewText(R.id.class_name_text, "未设定小学期起始日")
+                    attachClickIntent(context, views)
+                    return
+                }
 
                 val allClasses = data.optJSONArray("allClasses") ?: run {
                     hideAllFields(views); views.setTextViewText(R.id.class_name_text, "课表数据异常"); return
@@ -252,10 +271,14 @@ class UpcomingClassWidget : AppWidgetProvider() {
                 val maxWeek = getMaxWeekIndex(allClasses, calendarDays)
 
                 // Find or extrapolate today's week index
-                val todayWeekIndex = getWeekIndexForDate(
-                    calendarDays, termSeason, maxWeek,
-                    todayYear, todayMonth, todayDay
-                )
+                val todayWeekIndex: Int? = if (isSummerTerm && summerStartYear >= 0) {
+                    computeSummerWeekIndex(summerStartYear, summerStartMonth, summerStartDay)
+                } else {
+                    getWeekIndexForDate(
+                        calendarDays, termSeason, maxWeek,
+                        todayYear, todayMonth, todayDay
+                    )
+                }
 
                 if (todayWeekIndex == null) {
                     hideAllFields(views)
@@ -264,8 +287,8 @@ class UpcomingClassWidget : AppWidgetProvider() {
                     return
                 }
 
-                // Summer term: show Monday schedule every day
-                val lookupWeekday = if (isSummerTerm) 1 else todayWeekday
+                // Use real weekday, no longer force Monday for summer term
+                val lookupWeekday = todayWeekday
 
                 // Filter today's classes
                 val todayClasses = mutableListOf<JSONObject>()
@@ -462,6 +485,15 @@ class UpcomingClassWidget : AppWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             updateWidget(context, appWidgetManager, appWidgetId)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        updateWidget(context, appWidgetManager, appWidgetId)
     }
 
     override fun onReceive(context: Context, intent: Intent) {

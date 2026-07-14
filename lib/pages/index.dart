@@ -491,7 +491,6 @@ class _HomePageState extends State<HomePage>
     required bool isWideScreen,
   }) {
     final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
 
     return Card.filled(
       shape: _noBorderShape,

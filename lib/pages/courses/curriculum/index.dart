@@ -88,6 +88,7 @@ class _CurriculumPageState extends State<CurriculumPage>
       allClasses: [...base.allClasses, ..._customCourses],
       allPeriods: base.allPeriods,
       calendarDays: base.calendarDays,
+      summerTermStartDate: base.summerTermStartDate,
     );
   }
 

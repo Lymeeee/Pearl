@@ -272,6 +272,9 @@ CurriculumIntegratedData _$CurriculumIntegratedDataFromJson(
         calendarDays: (json['calendarDays'] as List<dynamic>?)
             ?.map((e) => CalendarDay.fromJson(e as Map<String, dynamic>))
             .toList(),
+        summerTermStartDate: json['summerTermStartDate'] == null
+            ? null
+            : DateTime.parse(json['summerTermStartDate'] as String),
       )
       ..$lastUpdateTime = _$JsonConverterFromJson<String, DateTime>(
         json[r'$lastUpdateTime'],
@@ -289,6 +292,8 @@ Map<String, dynamic> _$CurriculumIntegratedDataToJson(
   'allClasses': instance.allClasses,
   'allPeriods': instance.allPeriods,
   'calendarDays': instance.calendarDays,
+  'summerTermStartDate':
+          instance.summerTermStartDate?.toIso8601String(),
 };
 
 CourseDetail _$CourseDetailFromJson(Map<String, dynamic> json) =>

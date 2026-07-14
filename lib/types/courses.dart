@@ -361,12 +361,14 @@ class CurriculumIntegratedData extends BaseDataClass {
   final List<ClassItem> allClasses;
   final List<ClassPeriod> allPeriods;
   final List<CalendarDay>? calendarDays;
+  DateTime? summerTermStartDate; // from AppSettings, set by provider
 
   CurriculumIntegratedData({
     required this.currentTerm,
     required this.allClasses,
     required this.allPeriods,
     this.calendarDays,
+    this.summerTermStartDate,
   });
 
   @override
@@ -410,7 +412,10 @@ class CurriculumIntegratedData extends BaseDataClass {
 
   int? getWeekIndexToday() {
     if (calendarDays == null || calendarDays!.isEmpty) {
-      return currentTerm.season >= 3 ? 1 : null;
+      if (currentTerm.season >= 3) {
+        return _computeSummerWeekIndex();
+      }
+      return null;
     }
 
     final now = DateTime.now();
@@ -425,18 +430,38 @@ class CurriculumIntegratedData extends BaseDataClass {
     return null;
   }
 
+  int _computeSummerWeekIndex() {
+    final start = summerTermStartDate;
+    if (start == null) return 1;
+    final now = DateTime.now();
+    final diffDays = now.difference(start).inDays;
+    if (diffDays < 0) return 1;
+    return (diffDays ~/ 7) + 1;
+  }
+
   Map<int, int> getWeekdayDaysOf(int week) {
-    if (calendarDays == null || calendarDays!.isEmpty) {
-      return {};
+    if (calendarDays != null && calendarDays!.isNotEmpty) {
+      final weekday2Day = <int, int>{};
+      for (final calendarDay in calendarDays!) {
+        if (calendarDay.weekIndex == week) {
+          weekday2Day[calendarDay.weekday] = calendarDay.day;
+        }
+      }
+      return weekday2Day;
     }
 
-    final weekday2Day = <int, int>{};
-    for (final calendarDay in calendarDays!) {
-      if (calendarDay.weekIndex == week) {
-        weekday2Day[calendarDay.weekday] = calendarDay.day;
+    final start = summerTermStartDate;
+    if (currentTerm.season >= 3 && start != null) {
+      final weekStart = start.add(Duration(days: (week - 1) * 7));
+      final weekday2Day = <int, int>{};
+      for (int i = 0; i < 7; i++) {
+        final day = weekStart.add(Duration(days: i));
+        weekday2Day[day.weekday] = day.day;
       }
+      return weekday2Day;
     }
-    return weekday2Day;
+
+    return {};
   }
 
   List<ClassItem> getClassesOfWeek(int week) {
@@ -450,10 +475,7 @@ class CurriculumIntegratedData extends BaseDataClass {
     if (currentWeek == null) return [];
 
     final now = DateTime.now();
-    final lookupDay = (currentTerm.season >= 3 &&
-            (calendarDays == null || calendarDays!.isEmpty))
-        ? 1
-        : now.weekday;
+    final lookupDay = now.weekday;
 
     return getClassesOfWeek(
       currentWeek,

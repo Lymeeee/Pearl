@@ -270,7 +270,7 @@ class UstbByytService extends BaseCoursesService {
           grgpa = content;
         }
       }
-      if (grgpa != null && grgpa is Map<String, dynamic>) {
+      if (grgpa != null) {
         _cachedGpaOverview = GpaOverview.fromJson(grgpa);
       }
 
