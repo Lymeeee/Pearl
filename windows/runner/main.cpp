@@ -15,13 +15,13 @@ std::wstring GetLocalizedAppTitle() {
       case SUBLANG_CHINESE_TRADITIONAL:
       case SUBLANG_CHINESE_HONGKONG:
       case SUBLANG_CHINESE_MACAU:
-        return L"\u5927\u8c9d\u6bbc";
+        return L"Pearl";
       default:
-        return L"\u5927\u8d1d\u58f3";
+        return L"Pearl";
     }
   }
 
-  return L"TheBeike";
+  return L"Pearl";
 }
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,

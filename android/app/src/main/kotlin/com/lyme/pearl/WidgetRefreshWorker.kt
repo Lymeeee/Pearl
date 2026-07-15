@@ -1,4 +1,4 @@
-package com.lyme.beikenext
+package com.lyme.pearl
 
 import android.content.Context
 import android.util.Log
@@ -43,7 +43,7 @@ class WidgetRefreshWorker(
 
             // Check if data is fresh enough
             val prefs = context.getSharedPreferences(
-                "com.lyme.beikenext.widget",
+                "com.lyme.pearl.widget",
                 Context.MODE_PRIVATE
             )
             val json = prefs.getString("curriculum_full_data", null)

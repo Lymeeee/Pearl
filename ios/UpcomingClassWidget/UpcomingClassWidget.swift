@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct UpcomingClassWidget: Widget {
-    private let kind: String = "com.lyme.beikenext.widget"
+    private let kind: String = "com.lyme.pearl.widget"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(

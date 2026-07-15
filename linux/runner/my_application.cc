@@ -14,16 +14,16 @@ static const char* get_localized_app_title() {
         g_str_has_prefix(*lang, "zh_HK") ||
         g_str_has_prefix(*lang, "zh_MO") ||
         g_str_has_prefix(*lang, "zh_Hant")) {
-      return u8"\u5927\u8c9d\u6bbc";
+      return u8"Pearl";
     }
     if (g_str_has_prefix(*lang, "zh_CN") ||
         g_str_has_prefix(*lang, "zh_SG") ||
         g_str_has_prefix(*lang, "zh_Hans")) {
-      return u8"\u5927\u8d1d\u58f3";
+      return u8"Pearl";
     }
   }
 
-  return "TheBeike";
+  return "Pearl";
 }
 
 struct _MyApplication {

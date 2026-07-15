@@ -3,11 +3,11 @@
 ; Documentation: https://jrsoftware.org/ishelp.php
 ; Download Inno Setup: https://jrsoftware.org/isdl.php
 
-#define MyAppName "TheBeike"
-#define MyAppFileName "beike_next"
-#define MyAppVersion "1.1.0"
-#define MyAppPublisher "Harry Huang"
-#define MyAppURL "https://thebeike.cn/"
+#define MyAppName "Pearl"
+#define MyAppFileName "pearl"
+#define MyAppVersion "1.0.0"
+#define MyAppPublisher "Lymeeee"
+#define MyAppURL "https://github.com/Lymeeee/Pearl"
 
 [Setup]
 ; WARN: The value of AppId uniquely identifies this app. Do not use the same AppId value in installers for other apps.

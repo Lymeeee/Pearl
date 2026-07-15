@@ -379,7 +379,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  static const _batteryChannel = MethodChannel('com.lyme.beikenext/battery');
+  static const _batteryChannel = MethodChannel('com.lyme.pearl/battery');
 
   Future<void> _requestBatteryOptimization() async {
     try {

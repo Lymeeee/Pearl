@@ -54,24 +54,9 @@ abstract class BaseCoursesService extends ChangeNotifier with BaseService {
 
   Future<List<CalendarDay>> getCalendarDays(TermInfo termInfo);
 
-  DateTime? getLastHeartbeatTime() => _lastHeartbeatTime;
-
-  Future<List<CourseInfo>> getAllSelectedCourses(TermInfo termInfo);
-
-  Future<List<CourseInfo>> getCoursesByTab(TermInfo termInfo, String tab);
-
-  Future<List<CourseTab>> getCourseTabs(TermInfo termInfo);
-
   Future<List<TermInfo>> getTerms();
 
-  Future<List<CourseInfo>> getCourseDetail(
-    TermInfo termInfo,
-    CourseInfo courseInfo,
-  );
-
-  Future<bool> sendCourseSelection(TermInfo termInfo, CourseInfo courseInfo);
-
-  Future<bool> sendCourseDeselection(TermInfo termInfo, CourseInfo courseInfo);
+  DateTime? getLastHeartbeatTime() => _lastHeartbeatTime;
 
   void startHeartbeat() {
     stopHeartbeat();
@@ -103,18 +88,4 @@ abstract class BaseCoursesService extends ChangeNotifier with BaseService {
       // Ignored
     }
   }
-
-  // Course Selection State Methods
-
-  CourseSelectionState getCourseSelectionState();
-
-  void updateCourseSelectionState(CourseSelectionState state);
-
-  void addCourseToSelection(CourseInfo course);
-
-  void removeCourseFromSelection(String courseId, [String? classId]);
-
-  void setSelectionTermInfo(TermInfo termInfo);
-
-  void clearCourseSelection();
 }

@@ -283,7 +283,7 @@ class _MainState extends State<Main> {
             : darkDynamic;
 
         return MaterialApp.router(
-          title: 'Beike NEXT',
+          title: 'Pearl',
           theme: _buildTheme(lightScheme),
           darkTheme: _buildTheme(darkScheme),
           themeMode: _themeMode,

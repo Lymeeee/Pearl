@@ -28,9 +28,9 @@ class _NetDialDrawerState extends State<NetDialDrawer> {
 
   String _buildUserAgent() {
     try {
-      return 'TheBeike-GUI/${MetaInfo.instance.appVersion}';
+      return 'Pearl/${MetaInfo.instance.appVersion}';
     } catch (_) {
-      return 'TheBeike-GUI/unknown';
+      return 'Pearl/unknown';
     }
   }
 

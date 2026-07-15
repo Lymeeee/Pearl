@@ -52,7 +52,7 @@ struct WidgetCurriculumData: Codable {
 // MARK: - Timeline Provider
 
 struct Provider: TimelineProvider {
-    private let appGroup = "group.com.lyme.beikenext"
+    private let appGroup = "group.com.lyme.pearl"
     private let curriculumDataKey = "curriculum_full_data"
 
     func placeholder(in context: Context) -> ClassEntry {

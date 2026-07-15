@@ -1,4 +1,4 @@
-package com.lyme.beikenext
+package com.lyme.pearl
 
 import android.content.Intent
 import android.provider.Settings
@@ -7,8 +7,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL_WIDGET = "com.lyme.beikenext/widget"
-    private val CHANNEL_BATTERY = "com.lyme.beikenext/battery"
+    private val CHANNEL_WIDGET = "com.lyme.pearl/widget"
+    private val CHANNEL_BATTERY = "com.lyme.pearl/battery"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

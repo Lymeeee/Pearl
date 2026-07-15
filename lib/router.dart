@@ -4,7 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'utils/haptic.dart';
 import 'pages/index.dart';
-import 'pages/courses/selection/index.dart';
+
 import 'pages/courses/curriculum/index.dart';
 import 'pages/courses/exam/index.dart';
 import 'pages/courses/grade/index.dart';
@@ -66,12 +66,7 @@ class AppRouter {
         path: '/courses/curriculum',
         builder: (context, data) => MainLayout(child: const CurriculumPage()),
       ),
-      NamedRouteDef(
-        name: 'CourseSelectionRoute',
-        path: '/courses/selection',
-        builder: (context, data) =>
-            MainLayout(child: const CourseSelectionPage()),
-      ),
+
       NamedRouteDef(
         name: 'ExamRoute',
         path: '/courses/exam',

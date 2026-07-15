@@ -69,7 +69,7 @@ IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 #if defined(FLUTTER_VERSION)
 #define VERSION_AS_STRING FLUTTER_VERSION
 #else
-#define VERSION_AS_STRING "1.1.0"
+#define VERSION_AS_STRING "1.0.0"
 #endif
 
 VS_VERSION_INFO VERSIONINFO
@@ -89,35 +89,35 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.lyme.beikenext" "\0"
-            VALUE "FileDescription", "TheBeike" "\0"
+            VALUE "CompanyName", "com.lyme.pearl" "\0"
+            VALUE "FileDescription", "Pearl" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "beike_next" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.lyme.beikenext All rights reserved." "\0"
-            VALUE "OriginalFilename", "beike_next.exe" "\0"
-            VALUE "ProductName", "TheBeike" "\0"
+            VALUE "InternalName", "pearl" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.lyme.pearl All rights reserved." "\0"
+            VALUE "OriginalFilename", "pearl.exe" "\0"
+            VALUE "ProductName", "Pearl" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
         BLOCK "080404b0"
         BEGIN
-            VALUE "CompanyName", "com.lyme.beikenext" "\0"
-            VALUE "FileDescription", "大贝壳" "\0"
+            VALUE "CompanyName", "com.lyme.pearl" "\0"
+            VALUE "FileDescription", "Pearl" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "beike_next" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.lyme.beikenext All rights reserved." "\0"
-            VALUE "OriginalFilename", "beike_next.exe" "\0"
-            VALUE "ProductName", "大贝壳" "\0"
+            VALUE "InternalName", "pearl" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.lyme.pearl All rights reserved." "\0"
+            VALUE "OriginalFilename", "pearl.exe" "\0"
+            VALUE "ProductName", "Pearl" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
         BLOCK "040404b0"
         BEGIN
-            VALUE "CompanyName", "com.lyme.beikenext" "\0"
-            VALUE "FileDescription", "大貝殼" "\0"
+            VALUE "CompanyName", "com.lyme.pearl" "\0"
+            VALUE "FileDescription", "Pearl" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "beike_next" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.lyme.beikenext All rights reserved." "\0"
-            VALUE "OriginalFilename", "beike_next.exe" "\0"
-            VALUE "ProductName", "大貝殼" "\0"
+            VALUE "InternalName", "pearl" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.lyme.pearl All rights reserved." "\0"
+            VALUE "OriginalFilename", "pearl.exe" "\0"
+            VALUE "ProductName", "Pearl" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

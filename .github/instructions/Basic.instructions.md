@@ -5,7 +5,7 @@ applyTo: "lib/**"
 
 ## Project Overview
 
-This project `The-Beike` is a Flutter application.
+This project `Pearl` is a Flutter application.
 
 ## Foundations
 
