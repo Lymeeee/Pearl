@@ -5,7 +5,7 @@
 
 #define MyAppName "Pearl"
 #define MyAppFileName "pearl"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "Lymeeee"
 #define MyAppURL "https://github.com/Lymeeee/Pearl"
 
