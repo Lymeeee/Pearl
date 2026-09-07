@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 import '/utils/page_mixins.dart';
 import '/utils/haptic.dart';
+import '/utils/navigation.dart';
 import '/utils/exam_helper.dart';
 import '/services/widget_updater.dart';
 import '/types/courses.dart';
@@ -357,7 +358,7 @@ class _HomePageState extends State<HomePage>
                     card.color,
                     () {
                       Haptics.selection();
-                      context.router.pushPath(card.route);
+                      pushPathGuarded(context, card.route);
                     },
                   ),
                 ),
@@ -387,7 +388,7 @@ class _HomePageState extends State<HomePage>
                   card.color,
                   () {
                     Haptics.selection();
-                    context.router.pushPath(card.route);
+                    pushPathGuarded(context, card.route);
                   },
                 ),
               ),
@@ -464,7 +465,7 @@ class _HomePageState extends State<HomePage>
                     item.color,
                     () {
                       Haptics.selection();
-                      context.router.pushPath(item.route);
+                      pushPathGuarded(context, item.route);
                     },
                   ),
           ),
@@ -484,7 +485,7 @@ class _HomePageState extends State<HomePage>
       child: InkWell(
         onTap: () {
           Haptics.selection();
-          context.router.pushPath('/courses/curriculum');
+          pushPathGuarded(context, '/courses/curriculum');
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
@@ -675,7 +676,7 @@ class _HomePageState extends State<HomePage>
       child: InkWell(
         onTap: () {
           Haptics.selection();
-          context.router.pushPath('/courses/exam');
+          pushPathGuarded(context, '/courses/exam');
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
@@ -959,7 +960,7 @@ class _HomePageState extends State<HomePage>
                 card.color,
                 () {
                   Haptics.selection();
-                  context.router.pushPath(card.route);
+                  pushPathGuarded(context, card.route);
                 },
               ),
             ),
@@ -1001,7 +1002,7 @@ class _HomePageState extends State<HomePage>
       child: InkWell(
         onTap: () {
           Haptics.selection();
-          context.router.pushPath(_emptyClassroomCard.route);
+          pushPathGuarded(context, _emptyClassroomCard.route);
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
@@ -1062,7 +1063,7 @@ class _HomePageState extends State<HomePage>
       child: InkWell(
         onTap: () {
           Haptics.selection();
-          context.router.pushPath('/courses/account');
+          pushPathGuarded(context, '/courses/account');
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
