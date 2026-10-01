@@ -60,6 +60,13 @@ class _HomePageState extends State<HomePage>
   // Feature card configurations
   late final List<_FeatureCardConfig> _courseFeatureCards = [
     _FeatureCardConfig(
+      title: '选课',
+      description: '查看和管理课程',
+      icon: Icons.school,
+      color: (c) => Theme.of(c).colorScheme.primary,
+      route: '/courses/selection',
+    ),
+    _FeatureCardConfig(
       title: '考试',
       description: '查看考试时间和地点',
       icon: Icons.assignment,
@@ -451,6 +458,13 @@ class _HomePageState extends State<HomePage>
     if (examMode) {
       final examCards = <_FeatureCardConfig>[
         _FeatureCardConfig(
+          title: '选课',
+          description: '查看和管理课程',
+          icon: Icons.school,
+          color: (c) => Theme.of(c).colorScheme.primary,
+          route: '/courses/selection',
+        ),
+        _FeatureCardConfig(
           title: '课表',
           description: '查看每周课程安排',
           icon: Icons.calendar_today,
@@ -531,6 +545,11 @@ class _HomePageState extends State<HomePage>
     if (examMode) {
       final wideExamCards = [
         _FeatureCardConfig(
+          title: '选课', description: '查看和管理课程',
+          icon: Icons.school, color: (c) => Theme.of(c).colorScheme.primary,
+          route: '/courses/selection',
+        ),
+        _FeatureCardConfig(
           title: '课表', description: '查看每周课程安排',
           icon: Icons.calendar_today, color: (c) => Theme.of(c).colorScheme.primary,
           route: '/courses/curriculum',
@@ -550,7 +569,14 @@ class _HomePageState extends State<HomePage>
             child: _buildCardRow([
               _buildAccountCard(context),
               wideExamCards[0],
+            ]),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 120,
+            child: _buildCardRow([
               wideExamCards[1],
+              wideExamCards[2],
             ]),
           ),
         ],
@@ -566,7 +592,14 @@ class _HomePageState extends State<HomePage>
           child: _buildCardRow([
             _buildAccountCard(context),
             _courseFeatureCards[0],
+          ]),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 120,
+          child: _buildCardRow([
             _courseFeatureCards[1],
+            _courseFeatureCards[2],
           ]),
         ),
       ],

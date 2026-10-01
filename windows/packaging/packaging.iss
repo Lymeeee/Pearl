@@ -1,11 +1,14 @@
-; *** Inno Setup Script for ArkPets ***
+; *** Inno Setup Script for Pearl ***
 ; This script is based on Inno Setup 6, a free installer for Windows programs.
 ; Documentation: https://jrsoftware.org/ishelp.php
 ; Download Inno Setup: https://jrsoftware.org/isdl.php
+; 版本号由构建方注入：ISCC.exe /DMyAppVersion=x.y.z packaging.iss
 
 #define MyAppName "Pearl"
 #define MyAppFileName "pearl"
-#define MyAppVersion "1.0.2"
+#ifndef MyAppVersion
+  #define MyAppVersion "1.1.1"
+#endif
 #define MyAppPublisher "Lymeeee"
 #define MyAppURL "https://github.com/Lymeeee/Pearl"
 

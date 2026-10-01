@@ -289,12 +289,16 @@ class CalendarDay extends BaseDataClass {
   final int weekday;
   final int weekIndex;
 
+  /// 校历标记：true=休息日（周末/法定假日），false=上课日，null=未知（旧缓存数据）
+  final bool? isRest;
+
   CalendarDay({
     required this.year,
     required this.month,
     required this.day,
     required this.weekday,
     required this.weekIndex,
+    this.isRest,
   });
 
   @override
@@ -305,6 +309,7 @@ class CalendarDay extends BaseDataClass {
       'day': day,
       'weekday': weekday,
       'weekIndex': weekIndex,
+      'isRest': isRest,
     };
   }
 
@@ -430,6 +435,18 @@ class CurriculumIntegratedData extends BaseDataClass {
     return null;
   }
 
+  /// 小学期起始日 = 校历中的最早一天，拉不到校历时小组件回退用
+  static DateTime? summerStartFromCalendar(List<CalendarDay> days) {
+    DateTime? earliest;
+    for (final day in days) {
+      final date = DateTime(day.year, day.month, day.day);
+      if (earliest == null || date.isBefore(earliest)) {
+        earliest = date;
+      }
+    }
+    return earliest;
+  }
+
   int _computeSummerWeekIndex() {
     final start = summerTermStartDate;
     if (start == null) return 1;
@@ -475,11 +492,25 @@ class CurriculumIntegratedData extends BaseDataClass {
     if (currentWeek == null) return [];
 
     final now = DateTime.now();
+    if (now.weekday <= 5 && _isCalendarRestDay(now)) return [];
+
     final lookupDay = now.weekday;
 
     return getClassesOfWeek(
       currentWeek,
     ).where((classItem) => classItem.day == lookupDay).toList();
+  }
+
+  bool _isCalendarRestDay(DateTime date) {
+    if (calendarDays == null) return false;
+    for (final calendarDay in calendarDays!) {
+      if (calendarDay.year == date.year &&
+          calendarDay.month == date.month &&
+          calendarDay.day == date.day) {
+        return calendarDay.isRest == true;
+      }
+    }
+    return false;
   }
 
   ClassItem? getClassOngoing() {
@@ -528,6 +559,300 @@ class CurriculumIntegratedData extends BaseDataClass {
   int _deltaTime(TimeOfDay a, TimeOfDay b) {
     return a.hour * 60 + a.minute - b.hour * 60 - b.minute;
   }
+}
+
+@JsonSerializable()
+class CourseDetail extends BaseDataClass {
+  final String classId; // 讲台代码
+  final String? extraName; // 额外名称
+  final String? extraNameAlt; // 额外名称英文
+  final String selectionStatus; // 选课状态
+  final String selectionStartTime; // 讲台选课开始时间
+  final String selectionEndTime; // 讲台选课结束时间
+  final int ugTotal; // 本科生容量
+  final int ugReserved; // 本科生已选
+  final int pgTotal; // 研究生容量
+  final int pgReserved; // 研究生已选
+  final int? maleTotal; // 男生容量
+  final int? maleReserved; // 男生已选
+  final int? femaleTotal; // 女生容量
+  final int? femaleReserved; // 女生已选
+
+  final String? detailHtml; // 详情描述HTML
+  final String? detailHtmlAlt; // 详情描述HTML英文
+  final String? detailTeacherId; // 教师内部ID
+  final String? detailTeacherName; // 教师名称
+  final String? detailTeacherNameAlt; // 教师名称英文
+  final List<String>? detailSchedule; // 上课时间列表
+  final List<String>? detailScheduleAlt; // 上课时间列表英文
+  final String? detailClasses; // 生效班级
+  final String? detailClassesAlt; // 生效班级英文
+  final List<String>? detailTarget; // 面向对象列表
+  final List<String>? detailTargetAlt; // 面向对象列表英文
+  final String? detailExtra; // 额外信息
+  final String? detailExtraAlt; // 额外信息英文
+
+  CourseDetail({
+    required this.classId,
+    this.extraName,
+    this.extraNameAlt,
+    this.detailHtml,
+    this.detailHtmlAlt,
+    this.detailTeacherId,
+    this.detailTeacherName,
+    this.detailTeacherNameAlt,
+    this.detailSchedule,
+    this.detailScheduleAlt,
+    this.detailClasses,
+    this.detailClassesAlt,
+    this.detailTarget,
+    this.detailTargetAlt,
+    this.detailExtra,
+    this.detailExtraAlt,
+    required this.selectionStatus,
+    required this.selectionStartTime,
+    required this.selectionEndTime,
+    required this.ugTotal,
+    required this.ugReserved,
+    required this.pgTotal,
+    required this.pgReserved,
+    this.maleTotal,
+    this.maleReserved,
+    this.femaleTotal,
+    this.femaleReserved,
+  });
+
+  @override
+  Map<String, dynamic> getEssentials() {
+    return {'classId': classId};
+  }
+
+  bool get hasUg => ugTotal > 0;
+
+  bool get hasPg => pgTotal > 0;
+
+  bool get hasMale => (maleTotal ?? 0) > 0;
+
+  bool get hasFemale => (femaleTotal ?? 0) > 0;
+
+  bool get isAllFull {
+    bool hasSomeCapacity = false;
+    bool allCapacitiesFull = true;
+
+    if (hasUg) {
+      hasSomeCapacity = true;
+      if (ugReserved < ugTotal) {
+        allCapacitiesFull = false;
+      }
+    }
+
+    if (hasPg) {
+      hasSomeCapacity = true;
+      if (pgReserved < pgTotal) {
+        allCapacitiesFull = false;
+      }
+    }
+
+    if (hasMale) {
+      hasSomeCapacity = true;
+      if ((maleReserved ?? 0) < (maleTotal ?? 0)) {
+        allCapacitiesFull = false;
+      }
+    }
+
+    if (hasFemale) {
+      hasSomeCapacity = true;
+      if ((femaleReserved ?? 0) < (femaleTotal ?? 0)) {
+        allCapacitiesFull = false;
+      }
+    }
+
+    return hasSomeCapacity && allCapacitiesFull;
+  }
+
+  factory CourseDetail.fromJson(Map<String, dynamic> json) =>
+      _$CourseDetailFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$CourseDetailToJson(this);
+}
+
+@JsonSerializable()
+class CourseInfo extends BaseDataClass {
+  final String courseId; // 课程代码
+  final String courseName; // 课程名称
+  final String? courseNameAlt; // 课程名称英文
+  final String courseType; // 课程限制类型
+  final String? courseTypeAlt; // 课程限制类型英文
+  final String courseCategory; // 课程类别
+  final String? courseCategoryAlt; // 课程类别英文
+  final String districtName; // 校区名称
+  final String? districtNameAlt; // 校区名称英文
+  final String schoolName; // 开课院系名称
+  final String? schoolNameAlt; // 开课院系名称英文
+  final String termName; // 学年学期
+  final String? termNameAlt; // 学年学期英文
+  final String teachingLanguage; // 授课语言
+  final String? teachingLanguageAlt; // 授课语言英文
+  final double credits; // 学分
+  final double hours; // 学时
+  final bool isSelected; // 是否已选
+  final CourseDetail? classDetail; // 讲台详情
+  final String? fromTabId; // 来源标签页ID
+
+  CourseInfo({
+    required this.courseId,
+    required this.courseName,
+    this.courseNameAlt,
+    required this.courseType,
+    this.courseTypeAlt,
+    required this.courseCategory,
+    this.courseCategoryAlt,
+    required this.districtName,
+    this.districtNameAlt,
+    required this.schoolName,
+    this.schoolNameAlt,
+    required this.termName,
+    this.termNameAlt,
+    required this.teachingLanguage,
+    this.teachingLanguageAlt,
+    required this.credits,
+    required this.hours,
+    this.isSelected = false,
+    this.classDetail,
+    this.fromTabId,
+  });
+
+  String get uniqueKey {
+    return '$courseId#${classDetail?.classId ?? ''}';
+  }
+
+  String get combinedName {
+    final extra = classDetail?.extraName;
+    if (extra == null || extra.isEmpty) {
+      return courseName;
+    }
+    return '$courseName $extra';
+  }
+
+  String get combinedNameAlt {
+    final extra = classDetail?.extraNameAlt;
+    if (extra == null || extra.isEmpty) {
+      return courseNameAlt ?? '';
+    }
+    if (courseNameAlt == null || courseNameAlt!.isEmpty) {
+      return extra;
+    }
+    return '$courseNameAlt $extra';
+  }
+
+  @override
+  Map<String, dynamic> getEssentials() {
+    return {'courseId': courseId, 'classDetail': classDetail?.classId};
+  }
+
+  factory CourseInfo.fromJson(Map<String, dynamic> json) =>
+      _$CourseInfoFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$CourseInfoToJson(this);
+}
+
+@JsonSerializable()
+class CourseTab extends BaseDataClass {
+  final String tabId; // 选课标签页代码
+  final String tabName; // 标签页名称
+  final String? tabNameAlt; // 标签页名称英文
+  final String? selectionStartTime; // 选课开始时间
+  final String? selectionEndTime; // 选课结束时间
+
+  CourseTab({
+    required this.tabId,
+    required this.tabName,
+    this.tabNameAlt,
+    this.selectionStartTime,
+    this.selectionEndTime,
+  });
+
+  @override
+  Map<String, dynamic> getEssentials() {
+    return {'tabId': tabId};
+  }
+
+  factory CourseTab.fromJson(Map<String, dynamic> json) =>
+      _$CourseTabFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$CourseTabToJson(this);
+}
+
+@JsonSerializable()
+class CourseSelectionState extends BaseDataClass {
+  final TermInfo? termInfo;
+  final List<CourseInfo> wantedCourses;
+
+  CourseSelectionState({this.termInfo, this.wantedCourses = const []});
+
+  @override
+  Map<String, dynamic> getEssentials() {
+    return {
+      'termInfo': termInfo?.toString(),
+      'wantedCoursesCount': wantedCourses.length,
+    };
+  }
+
+  CourseSelectionState addCourse(CourseInfo course) {
+    if (wantedCourses.any(
+      (c) =>
+          c.courseId == course.courseId &&
+          c.classDetail?.classId == course.classDetail?.classId,
+    )) {
+      // Do nothing
+      return this;
+    }
+    return CourseSelectionState(
+      termInfo: termInfo,
+      wantedCourses: [...wantedCourses, course],
+    );
+  }
+
+  CourseSelectionState removeCourse(String courseId, [String? classId]) {
+    return CourseSelectionState(
+      termInfo: termInfo,
+      wantedCourses: wantedCourses
+          .where(
+            (c) =>
+                !(c.courseId == courseId &&
+                    (classId == null || c.classDetail?.classId == classId)),
+          )
+          .toList(),
+    );
+  }
+
+  CourseSelectionState setTermInfo(TermInfo termInfo) {
+    return CourseSelectionState(
+      termInfo: termInfo,
+      wantedCourses: wantedCourses,
+    );
+  }
+
+  CourseSelectionState clear() {
+    return CourseSelectionState();
+  }
+
+  bool containsCourse(String courseId, [String? classId]) {
+    return wantedCourses.any(
+      (c) =>
+          c.courseId == courseId &&
+          (classId == null || c.classDetail?.classId == classId),
+    );
+  }
+
+  factory CourseSelectionState.fromJson(Map<String, dynamic> json) =>
+      _$CourseSelectionStateFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$CourseSelectionStateToJson(this);
 }
 
 @JsonSerializable()

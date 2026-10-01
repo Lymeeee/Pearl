@@ -1,0 +1,174 @@
+name: Release builds
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.41.4
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: get
+        run: |
+          echo "version=$(grep '^version:' pubspec.yaml | sed 's/version://; s/+.*//' | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+  android:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Prepare signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::未配置 KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_PASSWORD / KEY_ALIAS 这四个 Secrets，无法产出签名 APK"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=upload-keystore.jks\n' "$KS_PASS" "$KEY_PASS" "$KEY_ALIAS" > android/key.properties
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - run: cp build/app/outputs/flutter-apk/app-release.apk "Pearl_v${{ needs.version.outputs.version }}_android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: Pearl_v*_android.apk
+
+  ios:
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ipa --no-codesign
+      - name: Package unsigned IPA
+        run: |
+          cd build/ios/archive
+          mkdir -p Payload
+          ditto Runner.xcarchive/Products/Applications/Runner.app Payload/Runner.app
+          zip -qry "$GITHUB_WORKSPACE/Pearl_v${{ needs.version.outputs.version }}_ios_unsigned.ipa" Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: Pearl_v*_ios_unsigned.ipa
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter build macos --release
+      - name: Install create-dmg
+        run: brew install create-dmg
+      - name: Create DMG
+        run: |
+          STAGE="$RUNNER_TEMP/dmg-src"
+          mkdir -p "$STAGE"
+          ditto build/macos/Build/Products/Release/Pearl.app "$STAGE/Pearl.app"
+          printf '%s\n' \
+            '安装方法：' \
+            '1. 将 Pearl 图标拖入右侧的 Applications（应用程序）文件夹完成安装。' \
+            '' \
+            '首次打开提示“无法验证开发者”时：' \
+            '· 在“访达”中右键点击 Pearl，选择“打开”，再确认“打开”；' \
+            '· 或前往“系统设置 → 隐私与安全性”点击“仍要打开”。' \
+            '' \
+            '卸载：将 Pearl 从“应用程序”文件夹拖入废纸篓即可。' \
+            > "$STAGE/安装说明.txt"
+          OUT="$GITHUB_WORKSPACE/Pearl_v${{ needs.version.outputs.version }}_macos.dmg"
+          rm -f "$OUT"
+          set +e
+          create-dmg \
+            --volname "Pearl" \
+            --background "macos/packaging/dmg_background.png" \
+            --window-pos 200 120 \
+            --window-size 660 400 \
+            --icon-size 128 \
+            --icon "Pearl.app" 180 170 \
+            --hide-extension "Pearl.app" \
+            --app-drop-link 480 170 \
+            "$OUT" \
+            "$STAGE"
+          STATUS=$?
+          set -e
+          if [ ! -f "$OUT" ]; then
+            echo "create-dmg 未能生成 DMG（exit $STATUS）"
+            exit 1
+          fi
+          echo "create-dmg exit=$STATUS（2 表示窗口美化脚本未生效但 DMG 已生成）"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: Pearl_v*_macos.dmg
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=${{ needs.version.outputs.version }}" "windows\packaging\packaging.iss"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-setup
+          path: dist/Pearl-*-Windows.exe
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [version, android, ios, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
