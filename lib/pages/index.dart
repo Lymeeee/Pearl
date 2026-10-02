@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:lunar/lunar.dart';
 import '/utils/page_mixins.dart';
 import '/utils/haptic.dart';
 import '/utils/navigation.dart';
@@ -295,6 +296,14 @@ class _HomePageState extends State<HomePage>
   static String _dashYmd(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  static const List<String> _weekdayNames = ['一', '二', '三', '四', '五', '六', '日'];
+
+  static String _todayText(DateTime now) {
+    final lunar = Lunar.fromDate(now);
+    return '${now.month}月${now.day}日 · 星期${_weekdayNames[now.weekday - 1]}'
+        ' · ${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}';
+  }
+
   /// 拉取今明两天未结束的图书馆预约（座位 + 研修间），用于首页卡片展示。
   /// 先展示本地缓存（登录后/预约变动时更新），再尝试联网刷新；
   /// 登录过期或网络异常时保留缓存展示，不打断使用。
@@ -392,7 +401,7 @@ class _HomePageState extends State<HomePage>
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                '${DateTime.now().year}年${DateTime.now().month}月${DateTime.now().day}日',
+                _todayText(DateTime.now()),
                 style: TextStyle(
                   fontSize: 16,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,

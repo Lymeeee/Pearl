@@ -142,7 +142,7 @@ class AboutPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '一款非官方北科大校园助手',
+                    '一款非官方的北科大校园助手',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -307,7 +307,8 @@ class AboutPage extends StatelessWidget {
       }
     } catch (_) {}
     if (launched || !context.mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('无法打开链接')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('无法打开链接')));
   }
 }
