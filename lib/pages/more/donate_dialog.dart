@@ -75,6 +75,7 @@ Future<bool> showDonateDialog(BuildContext context, {bool prompt = false}) async
 
   await showDialog<void>(
     context: context,
+    barrierDismissible: false,
     builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, setDialogState) {
         return AlertDialog(
@@ -205,6 +206,7 @@ Future<void> showDonateFollowUp(BuildContext context) {
 
   return showDialog<void>(
     context: context,
+    barrierDismissible: false,
     builder: (dialogContext) => AlertDialog(
       title: Text(
         '那我先去写代码啦～',

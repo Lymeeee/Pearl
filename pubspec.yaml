@@ -47,6 +47,7 @@ dependencies:
   dynamic_color: ^1.7.0
   pointycastle: ^3.9.1
   lunar: ^1.7.8
+  audioplayers: ^6.0.0
 
 dev_dependencies:
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -102,6 +103,7 @@ flutter:
   assets:
     - assets/icons/
     - assets/donate/
+    - assets/audio/
 
   fonts:
     - family: MiSans
