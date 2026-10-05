@@ -57,6 +57,10 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# audioplayers_windows still uses <experimental/coroutine>, which MSVC 14.51+ (VS 18) rejects;
+# remove this once audioplayers is upgraded (needs Flutter >= 3.44).
+target_compile_definitions(audioplayers_windows_plugin PRIVATE _SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can
