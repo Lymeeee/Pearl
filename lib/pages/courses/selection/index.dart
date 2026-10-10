@@ -32,6 +32,8 @@ class _CourseSelectionPageState extends State<CourseSelectionPage> {
   @override
   void dispose() {
     _serviceProvider.removeListener(_onServiceStatusChanged);
+    // 退出选课流程（回首页）时清空预填单
+    PreSelectionStore.instance.clear();
     super.dispose();
   }
 
@@ -130,32 +132,6 @@ class _CourseSelectionPageState extends State<CourseSelectionPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildStepIndicator(context, 1),
-          const SizedBox(height: 24),
-
-          Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '选择学期',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '请选择您要进行选课的学期',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-
           if (_isLoading)
             const Expanded(child: Center(child: CircularProgressIndicator()))
           else if (_errorMessage != null)
@@ -238,8 +214,10 @@ class _CourseSelectionPageState extends State<CourseSelectionPage> {
                         ),
                       ),
                     )
-                  else
+                  else ...[
+                    const Spacer(),
                     Card.filled(
+                      margin: EdgeInsets.zero,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Column(
@@ -259,9 +237,8 @@ class _CourseSelectionPageState extends State<CourseSelectionPage> {
                             const SizedBox(height: 16),
                             DropdownButtonFormField<TermInfo>(
                               initialValue: _selectedTerm,
-                              decoration: InputDecoration(
-                                border: const OutlineInputBorder(),
-                                labelText: '选择学期',
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
                               ),
                               items: _terms.map((term) {
                                 return DropdownMenuItem(
@@ -281,116 +258,32 @@ class _CourseSelectionPageState extends State<CourseSelectionPage> {
                                 }
                               },
                             ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.outlineVariant.withValues(alpha: 0.2),
-                                ),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.info_outline,
-                                    size: 18,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      '本软件不对选课成功率提供保证，选课请求与教务官网等效（逐门手动提交，不自动重试）。',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                         ),
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    // 与卡片内下拉框等宽：左右缩进等于卡片内边距
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: _buildDisclaimer(),
+                    ),
+                    const Spacer(),
+                  ],
 
                   if (_serviceProvider.coursesService.isOnline) ...[
-                    const Spacer(),
-
-                    Container(
-                      width: double.infinity,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        gradient: _selectedTerm != null
-                            ? LinearGradient(
-                                colors: [
-                                  Theme.of(context).colorScheme.primary,
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withValues(alpha: 0.8),
-                                ],
-                              )
-                            : null,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: _selectedTerm != null
-                            ? [
-                                BoxShadow(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : null,
+                    FilledButton.icon(
+                      onPressed: _selectedTerm != null && !_isLoading
+                          ? () {
+                              Haptics.medium();
+                              _loadCourseTabs();
+                            }
+                          : null,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 52),
                       ),
-                      child: FilledButton(
-                        onPressed: _selectedTerm != null && !_isLoading
-                            ? () {
-                                Haptics.medium();
-                                _loadCourseTabs();
-                              }
-                            : null,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.arrow_forward,
-                              size: 24,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              '开始选课',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context).colorScheme.onPrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      icon: const Icon(Icons.arrow_forward),
+                      label: const Text('开始选课'),
                     ),
 
                     const SizedBox(height: 16),
@@ -408,6 +301,39 @@ class _CourseSelectionPageState extends State<CourseSelectionPage> {
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDisclaimer() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 18,
+            color: scheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '为保障公平，本软件不设自动抢课功能，因此不对选课成功率作保证。选课事关重要，请及时登录本研一体查看课程选择是否正确，有无漏选错选。',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         ],
       ),
     );

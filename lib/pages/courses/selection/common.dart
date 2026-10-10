@@ -266,79 +266,6 @@ class _CourseDeselectionDialogState extends State<CourseDeselectionDialog> {
 
 // Indicators
 
-Widget buildStepIndicator(BuildContext context, int currentStep) {
-  return Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
-      ),
-    ),
-    child: Row(
-      children: [
-        _buildStepItem(context, '选择学期', 1, currentStep == 1),
-        _buildStepConnector(context),
-        _buildStepItem(context, '选择课程', 2, currentStep == 2),
-      ],
-    ),
-  );
-}
-
-Widget _buildStepItem(
-  BuildContext context,
-  String title,
-  int stepNumber,
-  bool isActive,
-) {
-  return Expanded(
-    child: Column(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: isActive
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Center(
-            child: Text(
-              stepNumber.toString(),
-              style: TextStyle(
-                color: isActive ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            color: isActive
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildStepConnector(BuildContext context) {
-  return Container(
-    height: 2,
-    width: 20,
-    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-  );
-}
-
 Widget buildTermInfoDisplay(BuildContext context, TermInfo termInfo) {
   return Container(
     margin: const EdgeInsets.only(right: 8),
@@ -430,5 +357,49 @@ class CooldownHandler {
       return;
     }
     action();
+  }
+}
+
+/// 预填单（讲台级）：退出选课流程（选课入口页销毁）时清空
+class PreSelectionStore extends ChangeNotifier {
+  PreSelectionStore._();
+
+  static final PreSelectionStore instance = PreSelectionStore._();
+
+  final List<CourseInfo> _courses = [];
+
+  List<CourseInfo> get courses => List.unmodifiable(_courses);
+
+  int get count => _courses.length;
+
+  bool contains(String uniqueKey) =>
+      _courses.any((course) => course.uniqueKey == uniqueKey);
+
+  void toggle(CourseInfo course) {
+    if (contains(course.uniqueKey)) {
+      _courses.removeWhere((c) => c.uniqueKey == course.uniqueKey);
+    } else {
+      _courses.add(course);
+    }
+    notifyListeners();
+  }
+
+  void remove(String uniqueKey) {
+    _courses.removeWhere((course) => course.uniqueKey == uniqueKey);
+    notifyListeners();
+  }
+
+  /// 拖拽排序：修正 onReorder 的 newIndex 语义后落位
+  void reorder(int oldIndex, int newIndex) {
+    if (newIndex > oldIndex) newIndex -= 1;
+    final course = _courses.removeAt(oldIndex);
+    _courses.insert(newIndex, course);
+    notifyListeners();
+  }
+
+  void clear() {
+    if (_courses.isEmpty) return;
+    _courses.clear();
+    notifyListeners();
   }
 }

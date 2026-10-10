@@ -2,7 +2,7 @@ import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '/pages/net/traffic/dial.dart';
+import 'dial.dart';
 import '/pages/cockpit/gate.dart';
 import '/services/electricity/service.dart';
 import '/services/provider.dart';

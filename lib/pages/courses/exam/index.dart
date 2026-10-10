@@ -369,11 +369,6 @@ class _ExamPageState extends State<ExamPage> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 12),
                               decoration: BoxDecoration(
-                                color: i.isEven
-                                    ? null
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerLowest,
                                 borderRadius: isLast
                                     ? const BorderRadius.vertical(
                                         bottom: Radius.circular(16))

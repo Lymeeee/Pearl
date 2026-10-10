@@ -6,6 +6,7 @@ import '/utils/haptic.dart';
 import 'detail.dart';
 import 'common.dart';
 import 'filter.dart';
+import 'preselection_list.dart';
 
 class CourseListPage extends StatefulWidget {
   final TermInfo termInfo;
@@ -238,6 +239,32 @@ class _CourseListPageState extends State<CourseListPage>
     return MediaQuery.of(context).size.width >= 900;
   }
 
+  /// 右上角筛选键：样式对齐课表右上角小按钮
+  Widget _buildFilterAction() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Tooltip(
+        message: '筛选',
+        child: FilledButton(
+          onPressed: () {
+            Haptics.selection();
+            _showFilterDialog();
+          },
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            minimumSize: const Size(40, 40),
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Icon(Icons.filter_list, size: 18),
+        ),
+      ),
+    );
+  }
+
   void _showFilterDialog() {
     if (_isWideScreen(context)) {
       // 宽屏模式下，筛选条件在侧边栏中实时更新，不需要弹窗
@@ -383,7 +410,15 @@ class _CourseListPageState extends State<CourseListPage>
 
     return Scaffold(
       appBar: PageAppBar(
-        title: '选择课程',
+        title: '选课',
+        titleWidget: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('选课'),
+            const SizedBox(width: 12),
+            buildTermInfoDisplay(context, widget.termInfo),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -391,7 +426,7 @@ class _CourseListPageState extends State<CourseListPage>
             Navigator.pop(context);
           },
         ),
-        actions: [buildTermInfoDisplay(context, widget.termInfo)],
+        actions: isWideScreen ? null : [_buildFilterAction()],
       ),
       body: isWideScreen
           ? Row(
@@ -537,30 +572,82 @@ class _CourseListPageState extends State<CourseListPage>
                   onSubmitted: _performSearch,
                 ),
               ),
-              if (!_isWideScreen(context)) ...[
-                const SizedBox(width: 12),
-                SizedBox(
-                  height: 36,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Haptics.selection();
-                      _showFilterDialog();
-                    },
-                    icon: const Icon(Icons.filter_list, size: 18),
-                    label: const Text('高级筛选'),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
 
         const Divider(height: 1),
 
+
         Expanded(
           child: _selectedTab != null
               ? _buildTabContent(_selectedTab!)
               : const Center(child: Text('请选择标签页')),
+        ),
+
+        // 底部预填单入口：背景条包裹按钮突出显示
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+          ),
+          child: AnimatedBuilder(
+            animation: PreSelectionStore.instance,
+            builder: (context, _) {
+              final count = PreSelectionStore.instance.count;
+              return FilledButton.icon(
+                onPressed: () async {
+                  Haptics.medium();
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PreselectionListPage(termInfo: widget.termInfo),
+                    ),
+                  );
+                  if (mounted) _loadCourses();
+                },
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 52),
+                ),
+                icon: const Icon(Icons.playlist_add_check),
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '预填单',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onPrimary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$count',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ],
     );
@@ -584,9 +671,8 @@ class _CourseListPageState extends State<CourseListPage>
                     alignment: Alignment.centerLeft,
                     widthFactor: _cooldownHandler.animation.value,
                     child: Container(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
+                      // 用主色容器色：surface 系灰色在 Android Monet 动态配色下对比度太小
+                      color: Theme.of(context).colorScheme.primaryContainer,
                     ),
                   ),
                 ),
@@ -709,6 +795,11 @@ class _CourseListPageState extends State<CourseListPage>
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
 
+        // 窄屏放不下表格时改用卡片列表（宽屏保持原表格与行内展开）
+        if (availableWidth < 520) {
+          return _buildCourseCardList();
+        }
+
         final columnConfig = [
           {'name': '', 'minWidth': 80.0, 'flex': 0, 'isNumeric': false},
           {'name': '课程代码', 'minWidth': 80.0, 'flex': 2, 'isNumeric': false},
@@ -814,6 +905,51 @@ class _CourseListPageState extends State<CourseListPage>
     );
   }
 
+  bool _isCourseSelected(CourseInfo course) {
+    if (course.classDetail != null) {
+      return _selectedCourseKeys.contains(course.uniqueKey);
+    }
+    final prefix = '${course.courseId}#';
+    return _selectedCourseKeys.any((key) => key.startsWith(prefix));
+  }
+
+  Future<void> _showCourseDetailDialog(CourseInfo course) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => CourseDetailDialog(
+        course: course,
+        termInfo: widget.termInfo,
+        onSelectionChanged: () => setState(() {}),
+        onRefreshRequired: _loadCourses,
+        cooldownHandler: _cooldownHandler,
+        selectedCourseKeys: _selectedCourseKeys,
+      ),
+    );
+  }
+
+  /// 窄屏课程卡片列表：点击卡片打开详情弹窗
+  Widget _buildCourseCardList() {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      itemCount: _filteredCourses.length,
+      itemBuilder: (context, index) {
+        final course = _filteredCourses[index];
+        final isTapDisabled =
+            _isTabSwitchDisabled && course.classDetail == null;
+
+        return _CourseCard(
+          course: course,
+          isSelected: _isCourseSelected(course),
+          onTap: isTapDisabled
+              ? null
+              : () {
+                  Haptics.selection();
+                  _showCourseDetailDialog(course);
+                },
+        );
+      },
+    );
+  }
 }
 
 class _CourseTableHeader extends StatelessWidget {
@@ -1131,6 +1267,87 @@ class _CourseTableRowState extends State<_CourseTableRow>
               overflow: TextOverflow.ellipsis,
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// 窄屏课程卡片：代码·性质 / 学分·学时 / 类别 / 课程名称；
+/// 已选课程用旧选课按钮同款颜色浓度强调
+class _CourseCard extends StatelessWidget {
+  final CourseInfo course;
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  const _CourseCard({
+    required this.course,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final metaStyle = theme.textTheme.bodySmall?.copyWith(
+      color: scheme.onSurfaceVariant,
+    );
+    final typePart = course.courseType.isEmpty ? '' : ' ${course.courseType}';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      color: isSelected
+          ? scheme.primaryContainer.withValues(alpha: 0.3)
+          : scheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isSelected
+            ? BorderSide(color: scheme.primary.withValues(alpha: 0.4))
+            : BorderSide(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${course.courseId}$typePart',
+                style: metaStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '学分 ${course.credits} 学时 ${course.hours}',
+                style: metaStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (course.courseCategory.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  course.courseCategory,
+                  style: metaStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                course.combinedName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

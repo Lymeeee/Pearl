@@ -184,6 +184,58 @@ class _PomodoroPageState extends State<PomodoroPage>
     _syncNoiseWithTimer();
   }
 
+  /// 长按重置：回到初始状态（专注阶段、番茄计数清零），统计记录不动
+  void _resetToInitial() {
+    Haptics.medium();
+    setState(() {
+      _phase = _Phase.focus;
+      _phaseMinutes = _settings.focusMinutes;
+      _remaining = _phaseMinutes * 60;
+      _endTime = null;
+      _status = _RunStatus.idle;
+      _cycleFocus = 0;
+    });
+    _syncNoiseWithTimer();
+  }
+
+  Future<void> _confirmResetAll() async {
+    Haptics.medium();
+    _dialogOpen = true;
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          final theme = Theme.of(dialogContext);
+          return AlertDialog(
+            title: const Text('重置本轮所有进度？'),
+            titleTextStyle: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            content: const Text('短按重置单个番茄，长按重置本轮所有进度。你刚才长按了。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('否'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(
+                  '是',
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+      if (confirmed == true && mounted) {
+        _resetToInitial();
+      }
+    } finally {
+      _dialogOpen = false;
+    }
+  }
+
   void _completeCurrentPhase() {
     Haptics.medium();
     if (_phase == _Phase.focus) {
@@ -358,9 +410,21 @@ class _PomodoroPageState extends State<PomodoroPage>
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [_buildTimerCard(context)],
+      // 内容整块垂直居中；矮屏放不下时仍可滚动
+      body: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 32,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [_buildTimerCard(context)],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -504,10 +568,13 @@ class _PomodoroPageState extends State<PomodoroPage>
                     _status == _RunStatus.running ? '暂停' : '开始',
                   ),
                 ),
-                OutlinedButton.icon(
-                  onPressed: _resetPhase,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('重置'),
+                GestureDetector(
+                  onLongPress: _confirmResetAll,
+                  child: OutlinedButton.icon(
+                    onPressed: _resetPhase,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('重置'),
+                  ),
                 ),
               ],
             ),

@@ -158,7 +158,7 @@ class CurriculumTable extends StatelessWidget {
     return Container(
       width: availableWidth,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Table(
@@ -367,8 +367,7 @@ class CurriculumTable extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(2, 1, 2, 1),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        color: classColors?.background ??
-            Theme.of(context).colorScheme.surfaceContainerLowest,
+        color: classColors?.background ?? Theme.of(context).colorScheme.surface,
         border: Border.all(
           color: Theme.of(context).colorScheme.outlineVariant,
           width: 0.5,

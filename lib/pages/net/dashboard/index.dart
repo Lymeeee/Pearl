@@ -1,15 +1,17 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '/pages/net/common/dialog_login.dart';
-import '/pages/net/common/wavy_bar.dart';
 import '/types/net.dart';
 import '/utils/app_bar.dart';
 import '/utils/page_mixins.dart';
 import 'dialog_change_pswd.dart';
 import 'dialog_device_show.dart';
 import 'dialog_device_add.dart';
+import 'dialog_online_device_show.dart';
 import 'dialog_plan_show.dart';
 import 'dialog_change_max_consume.dart';
+import 'bill.dart';
 import '/utils/haptic.dart';
 
 class NetDashboardPage extends StatefulWidget {
@@ -23,17 +25,26 @@ class _NetDashboardPageState extends State<NetDashboardPage>
     with PageStateMixin, LoadingStateMixin {
   NetUserInfo? _userInfo;
   List<MacDevice>? _macDevices;
+  List<NetOnlineSession> _onlineSessions = const [];
+  final ValueNotifier<List<NetOnlineSession>> _onlineSessionsNotifier =
+      ValueNotifier<List<NetOnlineSession>>(const []);
+  Timer? _sessionPollTimer;
+  bool _isRefreshingSessions = false;
+  static const Duration _sessionPollInterval = Duration(seconds: 10);
+
+  List<MonthlyBill> _monthlyBills = const [];
 
   bool _isLoggingOut = false;
   bool _isLoadingLogin = false;
-  bool _isRefreshingDevices = false;
-  bool _isRefreshingUser = false;
 
   bool get _isOnline => serviceProvider.netService.isOnline;
 
   @override
   void onServiceInit() {
     _refreshData();
+    if (_isOnline) {
+      _startSessionPolling();
+    }
   }
 
   @override
@@ -42,14 +53,54 @@ class _NetDashboardPageState extends State<NetDashboardPage>
       if (!mounted) return;
       setState(() {});
       if (_isOnline) {
+        _startSessionPolling();
         _refreshData();
       } else {
+        _stopSessionPolling();
         setState(() {
           _userInfo = null;
           _macDevices = null;
+          _onlineSessions = const [];
+          _monthlyBills = const [];
         });
+        _onlineSessionsNotifier.value = const [];
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _stopSessionPolling();
+    _onlineSessionsNotifier.dispose();
+    super.dispose();
+  }
+
+  void _startSessionPolling() {
+    _sessionPollTimer?.cancel();
+    _sessionPollTimer = Timer.periodic(
+      _sessionPollInterval,
+      (_) => _refreshOnlineSessionsSilently(),
+    );
+  }
+
+  void _stopSessionPolling() {
+    _sessionPollTimer?.cancel();
+    _sessionPollTimer = null;
+  }
+
+  Future<void> _refreshOnlineSessionsSilently() async {
+    if (!_isOnline || _isRefreshingSessions) return;
+    _isRefreshingSessions = true;
+    try {
+      final sessions = await serviceProvider.netService.getOnlineSessionList();
+      if (!mounted) return;
+      setState(() => _onlineSessions = sessions);
+      _onlineSessionsNotifier.value = sessions;
+    } catch (_) {
+      // 静默刷新失败时保留旧数据
+    } finally {
+      _isRefreshingSessions = false;
+    }
   }
 
   Future<void> _refreshData() async {
@@ -57,7 +108,10 @@ class _NetDashboardPageState extends State<NetDashboardPage>
       setState(() {
         _userInfo = null;
         _macDevices = null;
+        _onlineSessions = const [];
+        _monthlyBills = const [];
       });
+      _onlineSessionsNotifier.value = const [];
       return;
     }
 
@@ -66,14 +120,25 @@ class _NetDashboardPageState extends State<NetDashboardPage>
       final results = await Future.wait([
         serviceProvider.netService.getUser(),
         serviceProvider.netService.getDeviceList(),
+        serviceProvider.netService.getOnlineSessionList(),
+        for (final year in _recentBillYears())
+          serviceProvider.netService.getMonthPay(year: year),
       ]);
       final info = results[0] as NetUserInfo;
       final macDevices = results[1] as List<MacDevice>;
+      final sessions = results[2] as List<NetOnlineSession>;
+      final bills = results
+          .sublist(3)
+          .expand((result) => result as List<MonthlyBill>)
+          .toList();
       if (!mounted) return;
       setState(() {
         _userInfo = info;
         _macDevices = macDevices;
+        _onlineSessions = sessions;
+        _monthlyBills = bills;
       });
+      _onlineSessionsNotifier.value = sessions;
     } catch (e) {
       if (!mounted) return;
       setError(e.toString());
@@ -81,7 +146,10 @@ class _NetDashboardPageState extends State<NetDashboardPage>
         setState(() {
           _userInfo = null;
           _macDevices = null;
+          _onlineSessions = const [];
+          _monthlyBills = const [];
         });
+        _onlineSessionsNotifier.value = const [];
       }
     } finally {
       if (mounted) {
@@ -90,9 +158,14 @@ class _NetDashboardPageState extends State<NetDashboardPage>
     }
   }
 
+  /// 近六个月账单窗口涉及到的年份（跨年时为两个）
+  static Set<int> _recentBillYears() {
+    final now = DateTime.now();
+    return {now.year, DateTime(now.year, now.month - 5).year};
+  }
+
   Future<void> _refreshUserInfo() async {
     if (!_isOnline) return;
-    setState(() => _isRefreshingUser = true);
     try {
       final info = await serviceProvider.netService.getUser();
       if (!mounted) return;
@@ -106,21 +179,25 @@ class _NetDashboardPageState extends State<NetDashboardPage>
           _macDevices = null;
         });
       }
-    } finally {
-      if (mounted) setState(() => _isRefreshingUser = false);
     }
   }
 
   Future<void> _refreshDevices() async {
     if (!_isOnline) return;
-    setState(() {
-      _isRefreshingDevices = true;
-      _macDevices = null;
-    });
+    setState(() => _macDevices = null);
     try {
-      final macDevices = await serviceProvider.netService.getDeviceList();
+      final results = await Future.wait([
+        serviceProvider.netService.getDeviceList(),
+        serviceProvider.netService.getOnlineSessionList(),
+      ]);
+      final macDevices = results[0] as List<MacDevice>;
+      final sessions = results[1] as List<NetOnlineSession>;
       if (!mounted) return;
-      setState(() => _macDevices = macDevices);
+      setState(() {
+        _macDevices = macDevices;
+        _onlineSessions = sessions;
+      });
+      _onlineSessionsNotifier.value = sessions;
     } catch (e) {
       if (!mounted) return;
       setError('刷新设备列表失败：$e');
@@ -128,10 +205,10 @@ class _NetDashboardPageState extends State<NetDashboardPage>
         setState(() {
           _userInfo = null;
           _macDevices = null;
+          _onlineSessions = const [];
         });
+        _onlineSessionsNotifier.value = const [];
       }
-    } finally {
-      if (mounted) setState(() => _isRefreshingDevices = false);
     }
   }
 
@@ -365,8 +442,45 @@ class _NetDashboardPageState extends State<NetDashboardPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const PageAppBar(title: '校园网自助服务'),
+      appBar: PageAppBar(
+        title: '网络服务',
+        actions: _isOnline ? [_buildRefreshButton()] : null,
+      ),
       body: _buildBody(context),
+    );
+  }
+
+  /// 右上角统一刷新键：刷新期间置灰不可点并转圈
+  Widget _buildRefreshButton() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Tooltip(
+        message: '刷新',
+        child: FilledButton(
+          onPressed: isLoading
+              ? null
+              : () {
+                  Haptics.light();
+                  _refreshData();
+                },
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            minimumSize: const Size(40, 40),
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: isLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh, size: 18),
+        ),
+      ),
     );
   }
 
@@ -424,10 +538,12 @@ class _NetDashboardPageState extends State<NetDashboardPage>
                   ),
                   const SizedBox(height: 16),
                   _buildMacListCard(theme),
+                  const SizedBox(height: 16),
+                  NetBillHistorySection(bills: _monthlyBills),
                 ],
 
                 if (_userInfo == null && (!_isOnline || hasError))
-                  _buildLoginPromptCard(theme),
+                  _buildLoginView(theme),
               ],
             ),
           ),
@@ -436,50 +552,72 @@ class _NetDashboardPageState extends State<NetDashboardPage>
     );
   }
 
-  Widget _buildLoginPromptCard(ThemeData theme) {
-    return Card.filled(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+  /// 未登录视图：样式对齐图书馆/教务账户页
+  Widget _buildLoginView(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card.filled(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
                 Icon(
-                  Icons.lock_open,
-                  color: theme.colorScheme.primary,
-                  size: 28,
+                  Icons.error_outline,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  size: 32,
                 ),
                 const SizedBox(width: 12),
-                Text('管理校园网账户', style: theme.textTheme.titleLarge),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('本机登录状态', style: theme.textTheme.bodySmall),
+                      Text(
+                        '未登录',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              '登录后，您可以在此查看校园网的账户余额和已绑定设备。\n'
-              '流量查询请前往“流量查询”页面查看。',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _isLoadingLogin
-                  ? null
-                  : () {
-                      Haptics.medium();
-                      _showLoginDialog();
-                    },
-              icon: _isLoadingLogin
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.login),
-              label: const Text('登录'),
-            ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Text('登录方式', style: theme.textTheme.headlineSmall),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          color: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: theme.colorScheme.outlineVariant),
+          ),
+          child: ListTile(
+            leading: Icon(
+              Icons.security,
+              color: theme.colorScheme.primary,
+              size: 32,
+            ),
+            title: const Text('统一身份认证登录'),
+            subtitle: const Text('使用北京科技大学SSO系统'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: _isLoadingLogin
+                ? null
+                : () {
+                    Haptics.medium();
+                    _showLoginDialog();
+                  },
+          ),
+        ),
+      ],
     );
   }
 
@@ -507,22 +645,6 @@ class _NetDashboardPageState extends State<NetDashboardPage>
                 ),
                 const SizedBox(width: 12),
                 Text('校园网账户', style: theme.textTheme.titleLarge),
-                const Spacer(),
-                IconButton(
-                  onPressed: _isRefreshingUser
-                      ? null
-                      : () {
-                          Haptics.selection();
-                          _refreshUserInfo();
-                        },
-                  icon: _isRefreshingUser
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh),
-                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -817,37 +939,18 @@ class _NetDashboardPageState extends State<NetDashboardPage>
             width: double.infinity,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                if (isOverLimit) {
-                  // Case Over Limit
-                  return NetAnimatedWavyBar(
-                    ratio: 1.0,
-                    color: backgroundColor,
-                    maxWidth: constraints.maxWidth,
-                    child: Container(
-                      width: constraints.maxWidth,
-                      color: backgroundColor,
-                      child: Align(
+                return Stack(
+                  children: [
+                    // Right side color (Remaining or Exceeded)
+                    Container(color: backgroundColor),
+                    // Left side color (Used or Limit)
+                    if (ratio > 0)
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
                           width: constraints.maxWidth * ratio,
                           color: theme.colorScheme.primary,
                         ),
-                      ),
-                    ),
-                  );
-                }
-
-                // Case Normal
-                return Stack(
-                  children: [
-                    // Right side color (Remaining or Exceeded)
-                    Container(color: backgroundColor),
-                    // Left side color (Used or Limit) with wavy edge
-                    if (ratio > 0)
-                      NetAnimatedWavyBar(
-                        ratio: ratio,
-                        color: theme.colorScheme.primary,
-                        maxWidth: constraints.maxWidth,
                       ),
                   ],
                 );
@@ -945,7 +1048,37 @@ class _NetDashboardPageState extends State<NetDashboardPage>
     );
   }
 
+  static String _macKey(String mac) =>
+      mac.toUpperCase().replaceAll(RegExp(r'[^0-9A-F]'), '');
+
+  static String _formatMac(String rawMac) {
+    var displayMac = rawMac.toUpperCase();
+    if (RegExp(r'^[0-9A-F]{12}$').hasMatch(displayMac)) {
+      displayMac = displayMac.replaceAllMapped(
+        RegExp(r'.{2}'),
+        (match) => '${match.group(0)}:',
+      );
+      displayMac = displayMac.substring(0, displayMac.length - 1);
+    }
+    return displayMac;
+  }
+
+  /// 已绑定设备与当前在线会话按 MAC 合并为一张列表
+  List<({MacDevice? bound, NetOnlineSession? session})> _mergedDevices() {
+    final merged = <String, ({MacDevice? bound, NetOnlineSession? session})>{};
+    for (final device in _macDevices ?? const <MacDevice>[]) {
+      final existing = merged[_macKey(device.mac)];
+      merged[_macKey(device.mac)] = (bound: device, session: existing?.session);
+    }
+    for (final session in _onlineSessions) {
+      final existing = merged[_macKey(session.mac)];
+      merged[_macKey(session.mac)] = (bound: existing?.bound, session: session);
+    }
+    return merged.values.toList();
+  }
+
   Widget _buildMacListCard(ThemeData theme) {
+    final devices = _macDevices == null ? null : _mergedDevices();
     return Card.filled(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -960,52 +1093,37 @@ class _NetDashboardPageState extends State<NetDashboardPage>
                   size: 28,
                 ),
                 const SizedBox(width: 12),
-                Text('已绑定设备', style: theme.textTheme.titleLarge),
-                const Spacer(),
-                IconButton(
-                  onPressed: _isRefreshingDevices
-                      ? null
-                      : () {
-                          Haptics.selection();
-                          _refreshDevices();
-                        },
-                  icon: _isRefreshingDevices
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh),
-                ),
+                Text('我的设备', style: theme.textTheme.titleLarge),
               ],
             ),
             const SizedBox(height: 8),
-            if (_macDevices == null)
+            if (devices == null)
               SizedBox(
                 height: 80,
                 child: Center(
                   child: Text('正在载入设备列表', style: theme.textTheme.bodyMedium),
                 ),
               )
-            else if (_macDevices!.isEmpty)
+            else if (devices.isEmpty)
               SizedBox(
                 height: 80,
                 child: Center(
-                  child: Text(
-                    '未能加载设备列表\n或没有已绑定的设备',
-                    style: theme.textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text('暂无设备', style: theme.textTheme.bodyMedium),
                 ),
               )
             else
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: _macDevices!.length,
+                itemCount: devices.length,
                 itemBuilder: (context, index) {
-                  final device = _macDevices![index];
-                  return _buildMacListTile(theme, context, device);
+                  final merged = devices[index];
+                  return _buildDeviceTile(
+                    theme,
+                    context,
+                    bound: merged.bound,
+                    session: merged.session,
+                  );
                 },
               ),
             const SizedBox(height: 16),
@@ -1024,25 +1142,51 @@ class _NetDashboardPageState extends State<NetDashboardPage>
     );
   }
 
-  Widget _buildMacListTile(
-    ThemeData theme,
-    BuildContext context,
-    MacDevice device,
-  ) {
-    var displayMac = device.mac.toUpperCase();
-    // Add colons if missing for better readability
-    if (RegExp(r'^[0-9A-F]{12}$').hasMatch(displayMac)) {
-      displayMac = displayMac.replaceAllMapped(
-        RegExp(r'.{2}'),
-        (match) => '${match.group(0)}:',
+  /// 详情入口：已绑定设备优先（支持重命名），仅在线未绑定的看连接详情
+  void _showDeviceDetail({MacDevice? bound, NetOnlineSession? session}) {
+    if (bound != null) {
+      showDialog(
+        context: context,
+        builder: (context) => NetDeviceShowDialog(
+          device: bound,
+          onRename: (newName) async {
+            try {
+              await serviceProvider.netService.renameMac(
+                bound.mac,
+                terminalName: newName,
+              );
+            } catch (_) {
+              return false;
+            }
+            await _refreshDevices();
+            return true;
+          },
+        ),
       );
-      displayMac = displayMac.substring(
-        0,
-        displayMac.length - 1,
-      ); // remove last colon
+    } else if (session != null) {
+      showDialog(
+        context: context,
+        builder: (context) => NetOnlineDeviceShowDialog(
+          session: session,
+          sessionsListenable: _onlineSessionsNotifier,
+        ),
+      );
     }
+  }
 
-    final deviceName = device.name.trim();
+  Widget _buildDeviceTile(
+    ThemeData theme,
+    BuildContext context, {
+    required MacDevice? bound,
+    required NetOnlineSession? session,
+  }) {
+    final isOnline = session != null || (bound?.isOnline ?? false);
+    final displayMac = _formatMac(bound?.mac ?? session?.mac ?? '');
+    final boundName = bound?.name.trim() ?? '';
+    final sessionName = session?.deviceName.trim() ?? '';
+    final deviceName = boundName.isNotEmpty
+        ? boundName
+        : (sessionName.isNotEmpty ? sessionName : '未命名设备');
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1052,28 +1196,24 @@ class _NetDashboardPageState extends State<NetDashboardPage>
             padding: const EdgeInsets.all(6),
             child: Icon(
               size: 22,
-              device.isOnline ? Icons.link : Icons.link_off,
-              color: device.isOnline
+              isOnline ? Icons.link : Icons.link_off,
+              color: isOnline
                   ? theme.colorScheme.primary
-                  : theme.colorScheme.secondary,
+                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      displayMac,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                Text(
+                  displayMac,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 Text(
-                  deviceName.isNotEmpty ? deviceName : '未命名设备',
+                  deviceName,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -1090,41 +1230,25 @@ class _NetDashboardPageState extends State<NetDashboardPage>
             visualDensity: VisualDensity.compact,
             onPressed: () {
               Haptics.selection();
-              showDialog(
-                context: context,
-                builder: (context) => NetDeviceShowDialog(
-                  device: device,
-                  onRename: (newName) async {
-                    try {
-                      await serviceProvider.netService.renameMac(
-                        device.mac,
-                        terminalName: newName,
-                      );
-                    } catch (_) {
-                      return false;
-                    }
-                    await _refreshDevices();
-                    return true;
-                  },
-                ),
-              );
+              _showDeviceDetail(bound: bound, session: session);
             },
             icon: const Icon(Icons.info_outline),
             tooltip: '详情',
           ),
-          IconButton(
-            iconSize: 20,
-            color: theme.colorScheme.error,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            padding: EdgeInsets.zero,
-            visualDensity: VisualDensity.compact,
-            onPressed: () {
-              Haptics.heavy();
-              _handleUnbindMac(device);
-            },
-            icon: const Icon(Icons.delete_outline),
-            tooltip: '解绑设备',
-          ),
+          if (bound != null)
+            IconButton(
+              iconSize: 20,
+              color: theme.colorScheme.error,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                Haptics.heavy();
+                _handleUnbindMac(bound);
+              },
+              icon: const Icon(Icons.delete_outline),
+              tooltip: '解绑设备',
+            ),
         ],
       ),
     );

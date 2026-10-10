@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 abstract class UnifiedAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   final String title;
+  final Widget? titleWidget;
   final List<Widget>? actions;
   final Widget? leading;
   final bool autoImplyLeading;
@@ -14,6 +15,7 @@ abstract class UnifiedAppBar extends StatelessWidget
   const UnifiedAppBar({
     super.key,
     required this.title,
+    this.titleWidget,
     this.actions,
     this.leading,
     this.autoImplyLeading = true,
@@ -27,7 +29,7 @@ abstract class UnifiedAppBar extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: Text(title, style: titleTextStyle),
+      title: titleWidget ?? Text(title, style: titleTextStyle),
       titleSpacing: titleSpacing,
       actions: actions,
       leading: leading,
@@ -61,6 +63,7 @@ class PageAppBar extends UnifiedAppBar {
   const PageAppBar({
     super.key,
     required super.title,
+    super.titleWidget,
     super.actions,
     super.leading,
     super.autoImplyLeading = true,

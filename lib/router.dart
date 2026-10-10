@@ -13,7 +13,6 @@ import 'pages/courses/exam/index.dart';
 import 'pages/courses/grade/index.dart';
 import 'pages/courses/account/index.dart';
 import 'pages/net/dashboard/index.dart';
-import 'pages/net/traffic/index.dart';
 import 'pages/net/webvpn/index.dart';
 import 'pages/more/settings.dart';
 import 'pages/more/about.dart';
@@ -129,12 +128,6 @@ class AppRouter {
         path: '/net/dashboard',
         type: _slideRouteType,
         builder: (context, data) => MainLayout(child: const NetDashboardPage()),
-      ),
-      NamedRouteDef(
-        name: 'NetTrafficRoute',
-        path: '/net/traffic',
-        type: _slideRouteType,
-        builder: (context, data) => MainLayout(child: const NetTrafficPage()),
       ),
       NamedRouteDef(
         name: 'WebVpnRoute',

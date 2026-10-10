@@ -369,7 +369,7 @@ class _FilterDialogState extends State<FilterDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('高级筛选'),
+      title: const Text('筛选'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,

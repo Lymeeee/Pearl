@@ -102,17 +102,10 @@ class _HomePageState extends State<HomePage>
     ),
     _FeatureCardConfig(
       title: '网络服务',
-      description: '账户管理和账单查询',
+      description: '设备管理与账单查询',
       icon: Icons.wifi,
       color: (c) => Theme.of(c).colorScheme.primary,
       route: '/net/dashboard',
-    ),
-    _FeatureCardConfig(
-      title: '流量查询',
-      description: '查看流量与费用明细',
-      icon: Icons.swap_vert,
-      color: (c) => Theme.of(c).colorScheme.primary,
-      route: '/net/traffic',
     ),
     _FeatureCardConfig(
       title: '专注时刻',
@@ -246,12 +239,6 @@ class _HomePageState extends State<HomePage>
     return prefs?.holidayMode ?? false;
   }
 
-  /// 课表卡片副标题：校历休息日（调休放假）说明当天没有课
-  String get _curriculumCardSubtitle =>
-      _curriculumData?.isTodayRestDay == true
-          ? '啊？今天好像调休放假吧～'
-          : '查看每周课程安排';
-
   void _loadExamData() {
     final cached = serviceProvider.storeService.getPref<CachedExamList>(
       'cached_exams',
@@ -318,8 +305,10 @@ class _HomePageState extends State<HomePage>
 
   static String _todayText(DateTime now) {
     final lunar = Lunar.fromDate(now);
+    final jieQi = lunar.getJieQi();
     return '${now.month}月${now.day}日 星期${_weekdayNames[now.weekday - 1]}'
-        ' ${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}';
+        ' ${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}'
+        '${jieQi.isEmpty ? '' : ' $jieQi'}';
   }
 
   /// 拉取今明两天未结束的图书馆预约（座位 + 研修间），用于首页卡片展示。
@@ -767,7 +756,7 @@ class _HomePageState extends State<HomePage>
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  _curriculumCardSubtitle,
+                  '查看每周课程安排',
                   style: TextStyle(
                     fontSize: 16,
                     color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.9),
@@ -812,7 +801,7 @@ class _HomePageState extends State<HomePage>
           ] else ...[
             const SizedBox(height: 16),
             Text(
-              _curriculumCardSubtitle,
+              '查看每周课程安排',
               style: TextStyle(
                 fontSize: 14,
                 color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.9),

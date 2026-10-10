@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '/services/provider.dart';
 import '/types/net.dart';
 import '/utils/haptic.dart';
+import '/utils/login_dialog.dart';
 
 class NetLoginDialog extends StatefulWidget {
   const NetLoginDialog({super.key});
@@ -11,29 +12,24 @@ class NetLoginDialog extends StatefulWidget {
   State<NetLoginDialog> createState() => _NetLoginDialogState();
 }
 
-class _NetLoginDialogState extends State<NetLoginDialog> {
+class _NetLoginDialogState extends State<NetLoginDialog>
+    with SingleTickerProviderStateMixin {
   final ServiceProvider _serviceProvider = ServiceProvider.instance;
 
+  late TabController _tabController;
   late TextEditingController _usernameController;
   late TextEditingController _passwordController;
-  late TextEditingController _extraCodeController;
 
   bool _isLoading = false;
   String? _errorMessage;
 
-  bool _isLoadingExtraCodeImage = false;
-  Uint8List? _extraCodeImage;
-
-  bool _hasAutoFilled = false;
-
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 1, vsync: this);
     _usernameController = TextEditingController();
     _passwordController = TextEditingController();
-    _extraCodeController = TextEditingController();
     _loadCachedCredentials();
-    _refreshRequirement();
   }
 
   Future<void> _loadCachedCredentials() async {
@@ -50,7 +46,6 @@ class _NetLoginDialogState extends State<NetLoginDialog> {
           setState(() {
             _usernameController.text = data.account;
             _passwordController.text = data.password;
-            _hasAutoFilled = true;
           });
         }
       }
@@ -61,95 +56,35 @@ class _NetLoginDialogState extends State<NetLoginDialog> {
     }
   }
 
-  Future<void> _refreshRequirement() async {
-    try {
-      final sessionState = await _serviceProvider.netService.getSessionState();
-      if (mounted) {
-        setState(() {});
-        if (sessionState.needRandomCode) {
-          await _loadExtraCodeImage();
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-        });
-      }
-    }
-  }
-
-  Future<void> _loadExtraCodeImage() async {
-    if (_isLoadingExtraCodeImage) return;
-
-    setState(() {
-      _isLoadingExtraCodeImage = true;
-    });
-
-    try {
-      final image = await _serviceProvider.netService.getCodeImage();
-
-      if (mounted) {
-        setState(() {
-          _extraCodeImage = image;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingExtraCodeImage = false;
-        });
-      }
-    }
-  }
-
   @override
   void dispose() {
+    _tabController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
-    _extraCodeController.dispose();
     super.dispose();
   }
 
-  Future<void> _clearLoginHistory() async {
-    try {
-      _serviceProvider.storeService.delConfig("net_account_data");
-      if (mounted) {
-        setState(() {
-          _usernameController.clear();
-          _passwordController.clear();
-          _hasAutoFilled = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = '$e';
-        });
-      }
-    }
+  bool _isLoginAllowed() {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+
+    return username.isNotEmpty && password.isNotEmpty;
   }
 
   Future<void> _handleLogin() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _hasAutoFilled = false;
     });
 
     try {
+      // 拉登录页解析 checkcode 并建立会话，login() 依赖该状态；
+      // 失败重试时也重新获取，避免复用已失效的 checkcode
+      await _serviceProvider.netService.getSessionState();
+
       await _serviceProvider.netService.login(
         _usernameController.text.trim(),
         _passwordController.text,
-        randomCode: _extraCodeController.text.trim().isEmpty
-            ? null
-            : _extraCodeController.text.trim(),
       );
 
       if (mounted) {
@@ -168,8 +103,6 @@ class _NetLoginDialogState extends State<NetLoginDialog> {
         setState(() {
           _errorMessage = e.toString();
         });
-        await _refreshRequirement();
-        _extraCodeController.text = '';
       }
     } finally {
       if (mounted) {
@@ -183,143 +116,261 @@ class _NetLoginDialogState extends State<NetLoginDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final state = _serviceProvider.netService.cachedSessionState;
 
-    bool isLoginAllowed() {
-      final username = _usernameController.text.trim();
-      final password = _passwordController.text;
-
-      return username.isNotEmpty && password.isNotEmpty;
-    }
-
-    return AlertDialog(
-      title: const Text('校园网自助服务登录'),
-      content: SingleChildScrollView(
+    return LoginDialog(
+      title: '统一身份认证',
+      description: '校园网自服务系统',
+      icon: Icons.wifi,
+      iconColor: theme.colorScheme.primary,
+      headerColor: theme.colorScheme.primaryContainer,
+      onHeaderColor: theme.colorScheme.onPrimaryContainer,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Text('请输入校园网的账号和密码，以登录管理面板。', style: theme.textTheme.bodySmall),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: '用户名',
-                hintText: '学工号',
-              ),
-              textInputAction: TextInputAction.next,
-              onChanged: (_) => setState(() {}),
+            TabBar(
+              controller: _tabController,
+              tabs: const [Tab(text: '账号密码登录')],
+              indicatorSize: TabBarIndicatorSize.tab,
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: '密码'),
-              obscureText: true,
-              textInputAction: TextInputAction.next,
-              onChanged: (_) => setState(() {}),
-            ),
-            if (_hasAutoFilled) ...[
-              const SizedBox(height: 12),
-              TextButton.icon(
-                onPressed: () {
-                  Haptics.light();
-                  _clearLoginHistory();
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final useHorizontalLayout = constraints.maxWidth > 600;
+                  if (useHorizontalLayout) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Center(child: _buildLoginForm(theme)),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Center(child: _buildStatusArea(theme)),
+                        ),
+                      ],
+                    );
+                  }
+                  return Column(
+                    children: [
+                      _buildLoginForm(theme),
+                      const SizedBox(height: 16),
+                      _buildStatusArea(theme),
+                    ],
+                  );
                 },
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('清除登录历史'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                    width: 1,
+                  ),
                 ),
               ),
-            ],
-            if (state?.needRandomCode == true) ...[
-              const SizedBox(height: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _extraCodeController,
-                          decoration: const InputDecoration(labelText: '验证码'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      if (_isLoadingExtraCodeImage)
-                        const SizedBox(
-                          height: 48,
-                          width: 128,
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (_extraCodeImage != null)
-                        InkWell(
-                          onTap: () {
-                            Haptics.selection();
-                            _loadExtraCodeImage();
-                          },
-                          child: Image.memory(
-                            _extraCodeImage!,
-                            height: 48,
-                            width: 128,
-                            fit: BoxFit.contain,
-                          ),
-                        )
-                      else
-                        SizedBox(
-                          height: 48,
-                          width: 128,
-                          child: Center(
-                            child: TextButton(
-                              onPressed: () {
-                                Haptics.selection();
-                                _loadExtraCodeImage();
-                              },
-                              child: const Text('加载验证码'),
-                            ),
-                          ),
-                        ),
-                    ],
+                  Icon(
+                    Icons.security,
+                    size: 14,
+                    color: theme.colorScheme.outline,
                   ),
-                  Text('点击验证码可刷新', style: theme.textTheme.bodySmall),
+                  const SizedBox(width: 4),
+                  Text(
+                    'zifuwu.ustb.edu.cn',
+                    style: theme.textTheme.bodySmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
-            ],
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _errorMessage!,
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ],
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading
-              ? null
-              : () {
-                  Haptics.light();
-                  Navigator.of(context).pop();
-                },
-          child: const Text('取消'),
+    );
+  }
+
+  Widget _buildLoginForm(ThemeData theme) {
+    return SizedBox(
+      width: 300,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _usernameController,
+            enabled: !_isLoading,
+            decoration: InputDecoration(
+              labelText: '用户名',
+              hintText: '学工号',
+              prefixIcon: const Icon(Icons.person_outline),
+              suffixIcon: _usernameController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        Haptics.light();
+                        setState(() {
+                          _usernameController.clear();
+                        });
+                      },
+                    )
+                  : null,
+            ),
+            textInputAction: TextInputAction.next,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _passwordController,
+            enabled: !_isLoading,
+            decoration: InputDecoration(
+              labelText: '密码',
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: _passwordController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        Haptics.light();
+                        setState(() {
+                          _passwordController.clear();
+                        });
+                      },
+                    )
+                  : null,
+            ),
+            obscureText: true,
+            textInputAction: TextInputAction.done,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) {
+              if (!_isLoading && _isLoginAllowed()) {
+                Haptics.medium();
+                _handleLogin();
+              }
+            },
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: (_isLoading || !_isLoginAllowed())
+                ? null
+                : () {
+                    Haptics.medium();
+                    _handleLogin();
+                  },
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              minimumSize: const Size(double.infinity, 52),
+            ),
+            child: _isLoading
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  )
+                : const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.login, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        '登录',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusArea(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    final isError = _errorMessage != null;
+    final statusColor = isError ? scheme.error : scheme.primary;
+    final message = isError
+        ? '登录失败'
+        : _isLoading
+        ? '正在登录'
+        : '等待登录';
+    final progress = isError
+        ? 0.0
+        : _isLoading
+        ? 1.0
+        : 0.0;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          isError ? Icons.error_outline : Icons.hourglass_bottom,
+          color: statusColor,
+          size: 48,
         ),
-        FilledButton(
-          onPressed: (_isLoading || !isLoginAllowed())
-              ? null
-              : () {
-                  Haptics.medium();
-                  _handleLogin();
-                },
-          child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('登录'),
+        const SizedBox(height: 4),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: isError ? scheme.error : null,
+          ),
         ),
+        const SizedBox(height: 4),
+        AnimatedOpacity(
+          duration: const Duration(milliseconds: 300),
+          opacity: progress == 0.0 ? 0.0 : 1.0,
+          child: Container(
+            width: 120,
+            height: 4,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: progress,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _errorMessage!,
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: scheme.error, fontSize: 14),
+          ),
+        ],
       ],
     );
   }

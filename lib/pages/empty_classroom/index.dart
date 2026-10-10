@@ -69,11 +69,13 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     final now = DateTime.now();
     final weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     final w = weekDays[now.weekday % 7];
+    final timeStr =
+        '${now.year}年${now.month.toString().padLeft(2, '0')}月${now.day.toString().padLeft(2, '0')}日 '
+        '$w '
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    if (timeStr == _currentTime) return;
     setState(() {
-      _currentTime =
-          '${now.year}年${now.month.toString().padLeft(2, '0')}月${now.day.toString().padLeft(2, '0')}日 '
-          '$w '
-          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+      _currentTime = timeStr;
     });
   }
 
@@ -127,7 +129,7 @@ class _EmptyClassroomPageState extends State<EmptyClassroomPage>
     final dateLabel = _service.selectedDate;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
